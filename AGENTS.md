@@ -26,7 +26,7 @@ Read only the module you need; each file starts with a comment saying what it ow
 - `server/` - `lobby.js` (connections, 60 Hz loop), `room.js` (1v1 match flow, weapon pool option), `coop.js` (co-op survival room), `inputs.js` (input queues, snapshot fan-out shared by both rooms).
 - `public/js/game.js` - `ClientGame` core (prediction, render loop, `hud()`), with mixins in `public/js/client/`: `shots.js` (weapon switch, shot fx), `events.js` (server events, unlocks), `interp.js` (remotes, items, projectiles), `terrain-sync.js` (op replay; `attach()` in solo where the local authority owns the terrain).
 - `public/js/solo.js` - `SoloServer`: runs `Survival` locally with one human and feeds snapshots like a co-op room.
-- `public/js/ui/hud.js` - hotbar, unlock banner, stamina, destruction meter, armory countdown, kill feed. `main.js` - menus and wiring.
+- `public/js/ui/hud.js` - hotbar, unlock banner, stamina, armory countdown, kill feed. `public/js/ui/feel.js` - low-HP vignette and heartbeat, hit direction arcs, multi-kill/streak callouts, "killed by" recap. `main.js` - menus, pause settings (prefs in localStorage `sd-prefs`) and wiring.
 - Tool add-ons are mixed into base classes: `fx-tools.js` (Fx), `audio-tools.js` (Sfx), `sprites-tools.js` (gun/pickup sprites).
 
 ## Weapon progression
