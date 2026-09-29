@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stick Duel</title>
+    <meta name="description" content="1v1 online stickman shooter, or solo and co-op against waves of enemies, on fully destructible pixel maps." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%23221a45'/%3E%3Crect x='6' y='2' width='4' height='4' fill='%23ff7b22'/%3E%3Crect x='7' y='6' width='2' height='5' fill='%23ff7b22'/%3E%3Crect x='5' y='11' width='2' height='3' fill='%23ff7b22'/%3E%3Crect x='9' y='11' width='2' height='3' fill='%23ff7b22'/%3E%3Crect x='9' y='7' width='5' height='2' fill='%233ee6ff'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="view" width="800" height="450"></canvas>
+
+      <div id="hud" class="hidden">
+        <div id="scoreboard">
+          <div class="side s0"><span class="nm">P1</span><b class="sc">0</b></div>
+          <div class="mid">
+            <span id="goal-text">FIRST TO 5</span>
+            <span id="map-text"></span>
+          </div>
+          <div class="side s1"><b class="sc">0</b><span class="nm">P2</span></div>
+        </div>
+        <div id="wavebar" class="hidden">
+          <div class="wv"><span>WAVE</span><b id="wb-wave">1</b></div>
+          <div class="en"><span>ENEMIES</span><b id="wb-left">0</b></div>
+          <div class="sc"><span>SCORE</span><b id="wb-score">0</b></div>
+          <div class="lv"><span>LIVES</span><b id="wb-lives">♥♥♥</b></div>
+        </div>
+        <div id="netinfo"></div>
+        <div id="killfeed"></div>
+        <div id="meters">
+          <div class="m"><span>WORLD DESTROYED</span><b id="destroyed">0%</b></div>
+          <div class="bar" id="destroyed-bar"><i></i></div>
+          <div class="m"><span>ARSENAL</span><b id="arsenal">-</b></div>
+          <div class="m hidden" id="armory"><span>ARMORY DROP IN</span><b id="armory-t">20S</b></div>
+        </div>
+        <div id="unlock" class="hidden">
+          <div class="u-head">UNLOCKED</div>
+          <canvas id="unlock-icon" width="1" height="1"></canvas>
+          <div class="u-name" id="unlock-name"></div>
+          <div class="u-sub" id="unlock-sub"></div>
+        </div>
+        <div id="center-msg"></div>
+        <div id="sub-msg"></div>
+
+        <div id="waiting" class="hidden">
+          <div class="w-title">WAITING FOR OPPONENT<span class="dots"></span></div>
+          <div class="w-code">ROOM <b id="w-code">----</b></div>
+          <div class="w-row">
+            <button class="btn small" id="btn-copy" type="button">COPY INVITE LINK</button>
+          </div>
+          <div class="w-row chips" id="w-maps"></div>
+          <div class="pool-picker" id="w-pool"></div>
+          <div class="w-hint">WARM UP WHILE YOU WAIT - EVERYTHING IS DESTRUCTIBLE, BARRELS CHAIN - PRESS B TO BUILD</div>
+        </div>
+
+        <div id="coop-wait" class="waitbox hidden">
+          <div class="w-title">CO-OP SURVIVAL <b id="cw-count">1/4</b></div>
+          <div class="w-code">ROOM <b id="cw-code">----</b></div>
+          <div class="w-row players" id="cw-players"></div>
+          <div class="pool-picker" id="cw-pool"></div>
+          <div class="w-row">
+            <button class="btn small" id="btn-copy3" type="button">COPY INVITE LINK</button>
+            <button class="btn small primary" id="btn-coop-start" type="button">START THE WAVES</button>
+          </div>
+          <div class="w-hint">SHARE THE CODE OR LINK WITH UP TO 3 FRIENDS - ANYONE CAN PICK WEAPONS OR START</div>
+        </div>
+
+        <div id="bottom">
+          <div id="status">
+            <div class="bar hp"><i></i><span id="hp-text">100</span></div>
+            <div class="bar fuel"><i></i></div>
+            <div class="bar stam"><i></i></div>
+          </div>
+          <div id="hotbar"></div>
+        </div>
+
+        <div id="help">
+          <div class="help-title">CONTROLS <span class="dim">(H)</span></div>
+          <div class="row"><span class="keys"><kbd data-key="KeyA">A</kbd><kbd data-key="KeyD">D</kbd></span>RUN</div>
+          <div class="row"><span class="keys"><kbd>SHIFT</kbd></span>SPRINT</div>
+          <div class="row"><span class="keys"><kbd>SPACE</kbd></span>JUMP, AGAIN TO FLIP</div>
+          <div class="row"><span class="keys"><kbd>HOLD</kbd></span>JETPACK</div>
+          <div class="row"><span class="keys"><kbd data-key="KeyS">S</kbd></span>DROP DOWN</div>
+          <div class="row"><span class="keys"><kbd>CLICK</kbd></span>SHOOT</div>
+          <div class="row"><span class="keys"><kbd>R-CLICK</kbd></span>GRENADE / DETONATE C4</div>
+          <div class="row"><span class="keys"><kbd>1-9</kbd></span>WEAPONS, <kbd>Q</kbd> LAST, WHEEL CYCLES</div>
+          <div class="row"><span class="keys"><kbd data-key="KeyB">B</kbd></span>BUILDER - WALLS, RAMPS, FLOORS</div>
+          <div class="row dim">1V1: EVERY ALLOWED WEAPON FROM THE START, CRATES HEAL AND REFILL. SURVIVAL: START WITH 4, EACH CLEARED WAVE UNLOCKS THE NEXT</div>
+          <div class="row"><span class="keys"><kbd>ESC</kbd></span>MENU</div>
+        </div>
+      </div>
+
+      <div id="menu" class="overlay">
+        <div class="panel menu-panel">
+          <canvas id="logo" width="200" height="40"></canvas>
+          <div class="tagline">1V1 ONLINE, SOLO OR CO-OP VS WAVES - DESTROY EVERYTHING</div>
+
+          <label class="field">
+            <span>NAME</span>
+            <input id="name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="PLAYER" />
+          </label>
+
+          <div id="invite" class="hidden">
+            <button class="btn primary wide" id="btn-join-invite" type="button">JOIN ROOM <b id="invite-code"></b></button>
+          </div>
+
+          <button class="btn primary wide" id="btn-quick" type="button">QUICK MATCH - 1V1 ONLINE</button>
+
+          <div class="section survival">
+            <div class="section-title">SURVIVAL - HOLD THE OUTPOST AGAINST WAVES</div>
+            <button class="btn solo wide" id="btn-solo" type="button">SURVIVAL - SOLO</button>
+            <div class="best dim center" id="solo-best"></div>
+            <button class="btn coop wide" id="btn-coop" type="button">SURVIVAL - ONLINE CO-OP (2-4 PLAYERS)</button>
+            <div class="hint dim">CO-OP GIVES YOU A CODE - FRIENDS JOIN WITH IT BELOW</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">CREATE A PRIVATE 1V1 ROOM</div>
+            <div class="chips" id="create-maps"></div>
+            <div class="chips" id="create-goals"></div>
+            <div class="pool-picker" id="create-pool"></div>
+            <button class="btn wide" id="btn-create" type="button">CREATE ROOM</button>
+          </div>
+
+          <div class="section">
+            <div class="section-title">JOIN WITH A CODE - 1V1 OR CO-OP</div>
+            <div class="join-row">
+              <input id="code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE" />
+              <button class="btn" id="btn-join" type="button">JOIN</button>
+            </div>
+          </div>
+
+          <div id="conn" class="conn">CONNECTING...</div>
+        </div>
+      </div>
+
+      <div id="pause" class="overlay hidden">
+        <div class="panel small-panel">
+          <div class="panel-title">PAUSED</div>
+          <div class="dim center" id="pause-note">THE MATCH KEEPS RUNNING</div>
+          <button class="btn primary wide" id="btn-resume" type="button">RESUME</button>
+          <button class="btn wide" id="btn-copy2" type="button">COPY INVITE LINK</button>
+          <button class="btn wide" id="btn-mute" type="button">SOUND: ON</button>
+          <button class="btn wide danger" id="btn-leave" type="button">LEAVE MATCH</button>
+        </div>
+      </div>
+
+      <div id="over" class="overlay hidden">
+        <div class="panel small-panel">
+          <div class="panel-title" id="over-title">YOU WIN</div>
+          <div class="final" id="over-score"></div>
+          <div class="section-title">NEXT MAP</div>
+          <div class="chips" id="over-maps"></div>
+          <button class="btn primary wide" id="btn-rematch" type="button">REMATCH</button>
+          <div class="dim center" id="over-status"></div>
+          <button class="btn wide danger" id="btn-leave2" type="button">LEAVE</button>
+        </div>
+      </div>
+
+      <div id="solo-over" class="overlay hidden">
+        <div class="panel small-panel">
+          <div class="panel-title">GAME OVER</div>
+          <div class="stats">
+            <div><span>WAVE</span><b id="so-wave">1</b></div>
+            <div><span>KILLS</span><b id="so-kills">0</b></div>
+            <div><span>SCORE</span><b id="so-score">0</b></div>
+            <div id="so-best-row"><span>BEST</span><b id="so-best">0</b></div>
+          </div>
+          <div class="center new-best hidden" id="so-new">NEW BEST!</div>
+          <button class="btn primary wide" id="btn-retry" type="button">TRY AGAIN</button>
+          <button class="btn wide danger" id="btn-solo-menu" type="button">MENU</button>
+        </div>
+      </div>
+
+      <div id="toast"></div>
+    </div>
+
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>
