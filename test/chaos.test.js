@@ -153,3 +153,21 @@ test('falling debris never damages players', async () => {
   assert.equal(p.dead, false);
   assert.equal(p.hp, hp);
 });
+
+test('world hazards never finish a player and TNT spares whoever set it off', async () => {
+  const { FIRE_W } = await import('../shared/weapons.js');
+  const g = new Game('flat', 7, 2);
+  g.addPlayer(0);
+  g.addPlayer(1);
+  const p = g.players[0];
+  p.shield = 0;
+  p.hp = 12;
+  g.damage(0, 500, 1, FIRE_W, 0, 0, p.x, p.y, true);
+  assert.equal(p.hp, 1);
+  assert.equal(p.dead, false);
+  g.damage(0, 500, 1, FIRE_W, 0, 0, p.x, p.y, true);
+  assert.equal(p.dead, false, 'still standing on 1 hp');
+  p.hp = RULES.HP;
+  g.explode(p.x, p.y - 20, 'tnt', 0, 40);
+  assert.equal(p.hp, RULES.HP, 'own TNT chain does no damage');
+});

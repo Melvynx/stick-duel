@@ -1,7 +1,7 @@
 import { GRID_H, GRID_W } from '../constants.js';
 import { measureText } from '../font.js';
-import { D, MAT_GLASS, MAT_METAL, MAT_WOOD, S, bedrock, tnt } from './painter.js';
-import { barrelCluster, bridge, crateStack, glassCase, house, tower } from './props.js';
+import { D, MAT_GLASS, MAT_METAL, MAT_WOOD, S, bedrock, core } from './painter.js';
+import { arch, brickWall, bridge, crate, crateStack, glassCase, house, tower } from './props.js';
 
 // A destroyable startup landing page.
 export function buildLanding(P, rnd) {
@@ -59,13 +59,16 @@ export function buildLanding(P, rnd) {
   P.frame(404, 120, 478, 134, NAVY);
   P.textCenter('LEARN MORE', 441, 124, 1, null, NAVY);
 
-  // Cookie banners.
+  // Cookie banners (mirrored). The OK button is an unbreakable block, so the banner spawns always
+  // keep something to stand on.
   for (const x0 of [24, 670]) {
+    const ok = x0 < 400 ? x0 + 87 : x0 + 4;
     P.plat(x0, 150, x0 + 106, 166, 3, WHITE);
     P.frame(x0, 150, x0 + 106, 166, '#e2d9cf');
-    P.text('WE USE COOKIES', x0 + 6, 155, 1, null, '#5c5470');
-    P.round(x0 + 87, 153, x0 + 102, 163, 2, null, '#6c4cff');
-    P.textCenter('OK', x0 + 94, 155, 1, null, WHITE);
+    P.text('WE USE COOKIES', x0 < 400 ? x0 + 6 : x0 + 24, 155, 1, null, '#5c5470');
+    P.round(ok, 153, ok + 15, 163, 2, S, '#6c4cff');
+    P.textCenter('OK', ok + 7, 155, 1, null, WHITE);
+    core(P, ok, 153, ok + 15, 163, null);
   }
 
   // Feature cards (solid cover).
@@ -88,6 +91,10 @@ export function buildLanding(P, rnd) {
     P.rect(x0 + 12, 238, x1 - 12, 241, null, '#e3dcea');
     P.rect(x0 + 12, 245, x1 - 34, 248, null, '#e3dcea');
     P.rect(x0 + 12, 252, x1 - 60, 254, null, accent);
+    // Unbreakable core under the top edge and a keel below it: the card can be chipped away
+    // but never falls or vanishes.
+    core(P, x0 + 16, 208, x1 - 16, 214, null);
+    core(P, x0 + 44, 214, x1 - 44, 232, null);
   }
 
   // Search bar.
@@ -119,10 +126,6 @@ export function buildLanding(P, rnd) {
   P.rect(556, 388, 600, 392, null, '#11927f');
   P.textCenter('$0', 578, 366, 2, null, WHITE);
 
-  // Explosive promo crates.
-  for (const x of [300, 490]) tnt(P, x, 380, 12, 12);
-  tnt(P, 355, 108, 8, 8);
-
   // Footer and bedrock.
   P.rect(0, 392, GRID_W, GRID_H - 12, S, NAVY);
   P.rect(0, 392, GRID_W, 394, null, '#2f2a52');
@@ -133,23 +136,24 @@ export function buildLanding(P, rnd) {
   props(P);
 }
 
-// Destructible chaos, mirrored on both halves (the footer is the ground at row 392).
+// Destructible set pieces, mirrored on both halves (the footer is the ground at row 392).
 // Spawns stand on the chips, the cookie banners, the 404/$0 blocks and the floor at x 400:
-// nothing here covers them.
+// nothing here covers them. No explosives: everything here is cover to wreck.
 function props(P) {
   for (const side of [1, -1]) {
     const m = (x, w = 0) => (side > 0 ? x : GRID_W - x - w);
     house(P, m(16, 48), m(16, 48) + 48, 392, side, 34);
     tower(P, m(172), 392, 2, 16);
     crateStack(P, m(112, 30), 392, 3, 10);
-    barrelCluster(P, m(262, 23), 392, 3);
+    brickWall(P, m(258, 30), m(258, 30) + 30, 392, 14);
+    crate(P, m(300, 11), 392, 11);
     crateStack(P, m(318, 20), 392, 2, 10);
-    barrelCluster(P, m(346, 23), 392, 3);
-    barrelCluster(P, m(30, 15), 150, 2);
+    arch(P, m(342, 30), m(342, 30) + 30, 392, 24);
+    crate(P, m(40, 10), 150, 10);
     // Scaffold bridges between the feature cards, propped on stilts from the floor.
     bridge(P, m(192, 142), 206, m(192, 142) + 142, 206, [m(250, 3), m(292, 3)]);
   }
-  // Showcase on the middle card: a glass case of barrels.
+  // Showcase on the middle card: a glass case with a crate pyramid inside.
   glassCase(P, 386, 414, 206, 26);
-  barrelCluster(P, 392, 204, 2);
+  crateStack(P, 391, 204, 2, 9);
 }

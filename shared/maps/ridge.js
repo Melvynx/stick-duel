@@ -1,6 +1,6 @@
 import { GRID_H, GRID_W } from '../constants.js';
-import { D, MAT_BEAM, MAT_ROCK, S, bedrock, ledge, smooth, tnt } from './painter.js';
-import { barrelCluster, bridge, crateStack, footing, house, tower } from './props.js';
+import { D, MAT_BEAM, MAT_ROCK, S, bedrock, islandCore, ledge, smooth } from './painter.js';
+import { brickWall, bridge, crate, crateStack, footing, house, keep, tower } from './props.js';
 
 // Dusk ridge with floating islands and wooden ledges.
 export function buildRidge(P, rnd) {
@@ -77,7 +77,7 @@ export function buildRidge(P, rnd) {
     P.disc(x - 3, g - 9, 4, null, '#85709a');
   }
 
-  // Floating islands.
+  // Floating islands, each on an unbreakable rock core.
   for (const [cx, cy, w] of [
     [180, 230, 60],
     [620, 230, 60],
@@ -93,6 +93,7 @@ export function buildRidge(P, rnd) {
       }
       if (rnd() < 0.18) P.behind(() => P.rect(x, cy + depth, x + 1, cy + depth + 2 + Math.floor(rnd() * 5), D, '#2e7a58'));
     }
+    islandCore(P, cx, cy, w);
   }
 
   // Wooden one-way ledges on posts.
@@ -105,13 +106,10 @@ export function buildRidge(P, rnd) {
     ledge(P, x0, x1, y, (px) => H[Math.max(0, Math.min(GRID_W - 1, px))]);
   }
 
-  // TNT stashes under the ledges and on the top island.
-  for (const x of [262, 536]) tnt(P, x - 5, H[x] - 10);
-  tnt(P, 395, 140, 10, 10);
-
   // King of the hill: a two-storey tower on the crest, rope bridges from both side islands to
   // its roof (a cell short of the islands so they keep their own anchor), houses on the
-  // plateaus, barrels on the slopes and crates on the islands.
+  // plateaus, stone keeps in the valleys, brick walls on the slopes, crates under the ledges and
+  // on the islands. No explosives anywhere.
   const top = (x0, x1) => {
     let g = GRID_H;
     for (let x = x0; x < x1; x++) g = Math.min(g, H[x]);
@@ -128,10 +126,16 @@ export function buildRidge(P, rnd) {
     const hg = top(hx, hx + 44);
     footing(P, hx, hx + 44, hg);
     house(P, hx, hx + 44, hg, side, 38);
-    const bx = m(318, 23);
-    const bg = top(bx, bx + 23);
-    footing(P, bx, bx + 23, bg);
-    barrelCluster(P, bx, bg, 3);
+    const bx = m(314, 30);
+    const bg = top(bx, bx + 30);
+    footing(P, bx, bx + 30, bg);
+    brickWall(P, bx, bx + 30, bg, 16);
+    const cx = m(257, 10);
+    const cg = top(cx, cx + 10);
+    footing(P, cx, cx + 10, cg);
+    crate(P, cx, cg, 10);
+    const kx = m(170);
+    keep(P, kx, top(kx - 20, kx + 20), 1, 18, side);
     crateStack(P, m(152, 20), 230, 2, 10);
   }
 }

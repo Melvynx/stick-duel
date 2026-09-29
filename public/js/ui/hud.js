@@ -3,8 +3,8 @@ import { GUNS, NADE_ICON } from '../sprites.js';
 import { LOCK } from '../sprites-tools.js';
 
 // In-match HUD widgets driven by ClientGame.hud(): hotbar (the match's weapon pool in unlock order,
-// keys 1..n, builder on B, locked slots),
-// weapon-unlock banner, stamina bar, destruction meter, armory countdown and kill feed.
+// keys 1..n, builder on B; only the next locked weapon is shown), weapon-unlock banner, stamina bar,
+// armory countdown and kill feed.
 
 const $ = (sel) => document.querySelector(sel);
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
@@ -32,7 +32,6 @@ export function createHud({ game, sfx, showYou }) {
   tip.className = 'tip hidden';
   let tipTimer = 0;
   let lastW = -1;
-  let lastOwned = -1;
   let pool = -1;
   let bar = poolBar(FULL_POOL);
   let slots = [];
@@ -68,7 +67,6 @@ export function createHud({ game, sfx, showYou }) {
     tip.classList.add('hidden');
     hotbar.appendChild(tip);
     lastW = -1;
-    lastOwned = -1;
   }
 
   function showTip(text, el) {
@@ -80,11 +78,14 @@ export function createHud({ game, sfx, showYou }) {
 
   function updateHotbar(h) {
     if (h.pool !== pool) buildBar(h.pool);
+    // Locked weapons stay out of the way: only the next reward shows, as a teaser.
+    const next = slots.find((q) => q.w !== W.builder && !owns(h.owned, q.w));
     for (const s of slots) {
       const ammo = h.ammo[s.w];
       const locked = !owns(h.owned, s.w);
       s.el.classList.toggle('on', s.w === h.w);
       s.el.classList.toggle('locked', locked);
+      s.el.classList.toggle('gone', locked && s !== next);
       s.el.classList.toggle('empty', !locked && ammo === 0);
       const W = WEAPONS[s.w];
       let txt = locked || ammo < 0 ? '' : String(ammo);
@@ -100,11 +101,6 @@ export function createHud({ game, sfx, showYou }) {
       const s = slots.find((q) => q.w === h.w);
       if (lastW !== -1 && s) showTip(WEAPONS[h.w].name, s.el);
       lastW = h.w;
-    }
-    if (h.owned !== lastOwned) {
-      const n = bar.slots.filter((w) => owns(h.owned, w)).length;
-      setText($('#arsenal'), `${n}/${bar.slots.length}`);
-      lastOwned = h.owned;
     }
   }
 
@@ -130,7 +126,6 @@ export function createHud({ game, sfx, showYou }) {
     banner.classList.add('pop');
     clearTimeout(bannerTimer);
     bannerTimer = setTimeout(() => banner.classList.add('hidden'), 2600);
-    lastOwned = -1;
   }
 
   // ---------- kill feed ----------
@@ -165,8 +160,6 @@ export function createHud({ game, sfx, showYou }) {
 
   const stam = $('.bar.stam');
   const stamFill = $('.bar.stam i');
-  const destroyed = $('#destroyed');
-  const destroyedFill = $('#destroyed-bar i');
   const armory = $('#armory');
   let lastArmory = -2;
 
@@ -179,9 +172,6 @@ export function createHud({ game, sfx, showYou }) {
     stamFill.style.width = `${Math.max(0, h.stamina)}%`;
     stam.classList.toggle('on', !!h.sprinting);
     stam.classList.toggle('low', h.stamina < 25);
-    const pct = Math.round(h.destruction * 100);
-    setText(destroyed, `${pct}%`);
-    destroyedFill.style.width = `${Math.min(100, h.destruction * 100)}%`;
     const ar = h.armory;
     if (ar !== lastArmory) {
       armory.classList.toggle('hidden', ar < 0);
@@ -193,7 +183,6 @@ export function createHud({ game, sfx, showYou }) {
 
   function reset() {
     lastW = -1;
-    lastOwned = -1;
     lastArmory = -2;
     feed.textContent = '';
     banner.classList.add('hidden');

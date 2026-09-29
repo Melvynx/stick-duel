@@ -13,7 +13,8 @@ const BOOM_OF = { [PROJ.ROCKET]: 'rocket', [PROJ.MIRV]: 'mirv', [PROJ.BOMBLET]: 
 
 // Damage, deaths, explosions, bullets and projectile flight.
 export const blasts = {
-  // `raw` skips the shooter multipliers (world hazards: debris, fire, TNT).
+  // `raw` marks world hazards (TNT chains, burning terrain): no shooter multipliers, half damage,
+  // and never lethal - only weapons can finish a player.
   damage(v, amount, by, w, kx, ky, hx, hy, raw) {
     const p = this.players[v];
     if (!this.present[v] || p.dead) return;
@@ -21,9 +22,9 @@ export const blasts = {
       this.emit({ e: 'i', x: r1(hx), y: r1(hy), a: 0, sh: 1 });
       return;
     }
-    let dmg = raw ? amount : by === v ? amount * RULES.SELF_DAMAGE : amount * (this.dealMul[by] ?? 1);
+    let dmg = raw ? amount * RULES.WORLD_DAMAGE : by === v ? amount * RULES.SELF_DAMAGE : amount * (this.dealMul[by] ?? 1);
     dmg *= this.takeMul[v];
-    p.hp = Math.max(0, p.hp - dmg);
+    p.hp = Math.max(raw ? Math.min(p.hp, 1) : 0, p.hp - dmg);
     p.vx += kx;
     p.vy += ky;
     if (ky < -60) p.grounded = false;
@@ -68,7 +69,8 @@ export const blasts = {
         kx = (cx / len) * S;
         ky = (cy / len) * S - S * 0.4;
       }
-      const hurts = owner < 0 || s === owner || this.hostile(owner, s);
+      // A TNT chain never hurts whoever set it off.
+      const hurts = owner < 0 || (s === owner && type !== 'tnt') || this.hostile(owner, s);
       if (hurts && d < 1.5 * R) {
         const by = owner < 0 ? s : owner;
         this.damage(s, B.dmg * scale * (1 - d / (1.5 * R)), by, B.w, kx, ky, p.x, p.y - BODY_MID, owner < 0 || type === 'tnt');

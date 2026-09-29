@@ -1,15 +1,16 @@
 import {
   GRID_W, MAT_ANCHOR, MAT_BEAM, MAT_BEDROCK, MAT_DECOR, MAT_EMPTY, MAT_GLASS, MAT_METAL, MAT_PLANK,
-  MAT_PLATFORM, MAT_ROCK, MAT_SOLID, MAT_TNT, MAT_WOOD,
+  MAT_PLATFORM, MAT_ROCK, MAT_SOLID, MAT_WOOD,
 } from '../constants.js';
 import { forEachPixel, measureText } from '../font.js';
+import { COLLIDE } from '../materials.js';
 import { pal } from '../palette.js';
 
 // Map painting toolkit. Coordinates are in cells (1 cell = 2 world px).
 export const S = MAT_SOLID;
 export const D = MAT_DECOR;
 export const PL = MAT_PLATFORM;
-export { MAT_ANCHOR, MAT_BEAM, MAT_BEDROCK, MAT_EMPTY, MAT_GLASS, MAT_METAL, MAT_PLANK, MAT_ROCK, MAT_TNT, MAT_WOOD };
+export { MAT_ANCHOR, MAT_BEAM, MAT_BEDROCK, MAT_EMPTY, MAT_GLASS, MAT_METAL, MAT_PLANK, MAT_ROCK, MAT_WOOD };
 
 // `mat === null` recolours existing non-empty cells and keeps their material.
 // Inside `behind()`, painting only fills empty cells (background props behind the ground).
@@ -17,6 +18,7 @@ export class Painter {
   constructor(t) {
     this.t = t;
     this.onlyEmpty = false;
+    this.cores = []; // indestructible cores, [x0, y0, x1, y1] in cells (see core())
   }
 
   put(x, y, mat, hex) {
@@ -145,13 +147,33 @@ export const smooth = (t) => {
   return c * c * (3 - 2 * c);
 };
 
-// A TNT crate: red body, dark bands and a white label. Explodes when shot, burnt or blasted.
-export function tnt(P, x, y, w = 10, h = 10) {
-  P.rect(x, y, x + w, y + h, MAT_TNT, '#d8323c');
-  P.rect(x, y + 2, x + w, y + 3, null, '#8f1d27');
-  P.rect(x, y + h - 3, x + w, y + h - 2, null, '#8f1d27');
-  P.rect(x + 2, y + 4, x + w - 2, y + h - 4, null, '#f4e7d0');
-  P.rect(x + 3, y + 5, x + w - 3, y + h - 5, null, '#d8323c');
+// Dark rock that shows once the ground around an indestructible core is blown away.
+export const CORE = ['#2a2238', '#342a44', '#3d3350'];
+
+// Indestructible core: every solid cell of [x0, x1) x [y0, y1) becomes bedrock (never carved,
+// burnt or crumbled, and it anchors whatever is built on it). `hexes` recolours the cells as dark
+// rock, `null` keeps the painted look (a card or a roof that should just never break).
+export function core(P, x0, y0, x1, y1, hexes = CORE) {
+  const t = P.t;
+  for (let y = Math.max(0, y0); y < Math.min(t.h, y1); y++) {
+    for (let x = Math.max(0, x0); x < Math.min(t.w, x1); x++) {
+      const i = y * t.w + x;
+      if (!COLLIDE[t.mat[i]]) continue;
+      t.mat[i] = MAT_BEDROCK;
+      if (hexes) t.col[i] = pal(hexes[(x * 7 + y * 13 + ((x ^ y) & 3)) % hexes.length]);
+    }
+  }
+  P.cores.push([x0, y0, x1, y1]);
+}
+
+// Floating island of width `w` whose grass line is row `cy`: a rock slab under the top two rows
+// (most of the width) plus a keel under its middle, so blasts chip the edges but the island
+// always stays up and standable.
+export function islandCore(P, cx, cy, w) {
+  const a = Math.round(w * 0.36);
+  const b = Math.round(w * 0.18);
+  core(P, cx - a, cy + 2, cx + a, cy + 8);
+  core(P, cx - b, cy + 8, cx + b, cy + 15);
 }
 
 // Dune-shaped mound of packed earth (solid, crumbles under blasts), sitting on whatever is below.

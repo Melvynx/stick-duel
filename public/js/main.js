@@ -1,13 +1,13 @@
 import { CREW_COLORS, INTERP_TICKS, PLAYER_COLORS, TICK_MS } from '/shared/constants.js';
 import { ENEMIES, MAX_HUMANS, SURVIVAL_SLOTS } from '/shared/survival.js';
-import { FULL_POOL, POOLS, POOL_IDS, SELECTABLE, START_OWNED, WEAPONS, sanitizePool } from '/shared/weapons.js';
+import { POOLS, POOL_IDS, sanitizePool } from '/shared/weapons.js';
 import { Sfx } from './audio.js';
 import { Fx, drawText } from './fx.js';
 import { ClientGame } from './game.js';
 import { Input } from './input.js';
 import { Net } from './net.js';
 import { SoloServer } from './solo.js';
-import { GUNS } from './sprites.js';
+import { createFeel } from './ui/feel.js';
 import { createHud } from './ui/hud.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -48,13 +48,8 @@ const ui = {
 };
 
 let maps = [];
-let goals = [3, 5, 10];
-let createMap = null;
-let createGoal = 5;
 // Weapon picker data (from the server hello, with local defaults so the menu renders offline).
-let poolWeapons = SELECTABLE.map((w) => ({ w, name: WEAPONS[w].name }));
 let poolPresets = POOL_IDS.map((id) => ({ id, name: POOLS[id].name, mask: POOLS[id].mask }));
-let createPool = FULL_POOL;
 // 'menu' | 'duel' (1v1 room) | 'solo' (local waves) | 'coop' (online waves)
 let mode = 'menu';
 let coop = null; // last co-op room info
@@ -150,80 +145,24 @@ ui.code.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') join(ui.code.value);
 });
 
-function gunIcon(w) {
-  const img = GUNS[w].img;
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  c.getContext('2d').drawImage(img, 0, 0);
-  c.style.setProperty('--sw', img.width);
-  c.style.setProperty('--sh', img.height);
-  return c;
-}
-
-// Allowed-weapons picker: preset chips (BASIC / ALL WEAPONS) and one toggle per weapon. The pistol
-// is always allowed. `onChange(mask)` gets an already sanitized pool.
+// Weapons setting: just ALL WEAPONS or BASIC. `onChange(mask)` gets a sanitized pool.
 function poolPicker(el, mask, onChange) {
   el.textContent = '';
-  const presets = document.createElement('div');
-  presets.className = 'chips pool-presets';
+  const row = document.createElement('div');
+  row.className = 'chips pool-presets';
   const label = document.createElement('span');
   label.className = 'pool-label';
   label.textContent = 'WEAPONS';
-  presets.appendChild(label);
+  row.appendChild(label);
   for (const p of poolPresets) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = `chip${p.mask === mask ? ' on' : ''}`;
     b.textContent = p.name;
     b.addEventListener('click', () => onChange(sanitizePool(p.mask)));
-    presets.appendChild(b);
+    row.appendChild(b);
   }
-  const custom = !poolPresets.some((p) => p.mask === mask);
-  if (custom) {
-    const tag = document.createElement('span');
-    tag.className = 'pool-custom';
-    tag.textContent = 'CUSTOM';
-    presets.appendChild(tag);
-  }
-  const guns = document.createElement('div');
-  guns.className = 'chips pool-guns';
-  for (const { w, name } of poolWeapons) {
-    const bit = 1 << w;
-    const fixed = bit === START_OWNED;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `chip gun${mask & bit ? ' on' : ''}${fixed ? ' fixed' : ''}`;
-    b.title = fixed ? `${name} IS ALWAYS ALLOWED` : `${mask & bit ? 'REMOVE' : 'ALLOW'} ${name}`;
-    b.setAttribute('aria-pressed', String(!!(mask & bit)));
-    b.disabled = fixed;
-    const t = document.createElement('span');
-    t.textContent = name;
-    b.append(gunIcon(w), t);
-    if (!fixed) b.addEventListener('click', () => onChange(sanitizePool(mask ^ bit)));
-    guns.appendChild(b);
-  }
-  el.append(presets, guns);
-}
-
-function renderCreateChips() {
-  poolPicker($('#create-pool'), createPool, (mask) => {
-    createPool = mask;
-    renderCreateChips();
-  });
-  chips($('#create-maps'), maps, createMap, (id) => {
-    createMap = id;
-    renderCreateChips();
-  });
-  chips(
-    $('#create-goals'),
-    goals.map((g) => ({ id: g, name: `FIRST TO ${g}` })),
-    createGoal,
-    (g) => {
-      createGoal = g;
-      renderCreateChips();
-    },
-  );
+  el.appendChild(row);
 }
 
 function join(code) {
@@ -242,7 +181,7 @@ $('#btn-quick').addEventListener('click', () => {
 });
 $('#btn-create').addEventListener('click', () => {
   sfx.unlock();
-  net.send({ t: 'create', name: playerName(), map: createMap, goal: createGoal, pool: createPool });
+  net.send({ t: 'create', name: playerName() }); // map and weapons are picked in the waiting room
 });
 $('#btn-coop').addEventListener('click', () => {
   sfx.unlock();
@@ -309,6 +248,8 @@ function enterSurvival(m) {
   input.enabled = true;
   input.releaseAll();
   hud.reset();
+  feel.reset();
+  helpOnStart();
   center('', '', false);
 }
 
@@ -443,6 +384,8 @@ function applyCoop(msg) {
     show(ui.soloOver, false);
     show(ui.pause, false);
     hud.reset();
+    feel.reset();
+    helpOnStart();
     input.enabled = true;
     input.releaseAll();
     flash('GET READY', 'DEFEND THE OUTPOST TOGETHER', 1300);
@@ -465,8 +408,55 @@ function setPaused(on) {
   if (solo.active) solo.paused = on;
 }
 
+// ---------- settings (pause menu, remembered per browser) ----------
+
+const prefs = { shake: true, help: false, helpSeen: false };
+try {
+  Object.assign(prefs, JSON.parse(localStorage.getItem('sd-prefs') || '{}'));
+} catch {
+  /* storage blocked */
+}
+function savePrefs() {
+  try {
+    localStorage.setItem('sd-prefs', JSON.stringify(prefs));
+  } catch {
+    /* storage blocked */
+  }
+}
+function toggleLabel(id, on) {
+  const b = $(`${id} b`);
+  b.textContent = on ? 'ON' : 'OFF';
+  b.classList.toggle('off', !on);
+}
+function applyPrefs() {
+  fx.shakeMul = prefs.shake ? 1 : 0;
+  toggleLabel('#btn-shake', prefs.shake);
+  toggleLabel('#btn-help', !ui.help.classList.contains('hidden'));
+}
+function setHelp(on, remember = true) {
+  ui.help.classList.toggle('hidden', !on);
+  if (remember) prefs.help = on;
+  savePrefs();
+  applyPrefs();
+}
+// The controls panel shows on your very first match, then stays tucked away unless you want it.
+function helpOnStart() {
+  if (!prefs.helpSeen) {
+    prefs.helpSeen = true;
+    setHelp(true, false);
+    setTimeout(() => setHelp(prefs.help, false), 15000);
+  } else setHelp(prefs.help, false);
+}
+$('#btn-shake').addEventListener('click', () => {
+  prefs.shake = !prefs.shake;
+  savePrefs();
+  applyPrefs();
+});
+$('#btn-help').addEventListener('click', () => setHelp(ui.help.classList.contains('hidden')));
+applyPrefs();
+
 function updateMuteLabel() {
-  $('#btn-mute').textContent = `SOUND: ${sfx.muted ? 'OFF' : 'ON'}`;
+  toggleLabel('#btn-mute', !sfx.muted);
 }
 
 function leave() {
@@ -533,15 +523,21 @@ input.on('mute', () => {
   updateMuteLabel();
   toast(sfx.muted ? 'SOUND OFF' : 'SOUND ON');
 });
-input.on('help', () => ui.help.classList.toggle('hidden'));
+input.on('help', () => setHelp(ui.help.classList.contains('hidden')));
 input.on('gesture', () => sfx.unlock());
 window.addEventListener('pointerdown', () => sfx.unlock());
 updateMuteLabel();
 
 // ---------- hud ----------
 
-const hud = createHud({ game, sfx, showYou: () => mode === 'solo' || mode === 'coop' });
-game.onFeed = hud.onFeed;
+const survivalMode = () => mode === 'solo' || mode === 'coop';
+const hud = createHud({ game, sfx, showYou: survivalMode });
+const feel = createFeel({ game, sfx, survival: survivalMode });
+game.onFeed = (by, victim, w) => {
+  hud.onFeed(by, victim, w);
+  feel.onDeath(by, victim, w);
+};
+game.onHurt = feel.hurtFrom;
 game.onUnlock = hud.unlocked;
 game.onToast = (text) => toast(text);
 
@@ -664,12 +660,7 @@ net.on('close', () => {
 });
 net.on('hello', (msg) => {
   maps = msg.maps;
-  goals = msg.goals;
-  if (msg.weapons?.length) poolWeapons = msg.weapons;
   if (msg.pools?.length) poolPresets = msg.pools;
-  if (!createMap && maps.length) createMap = maps[0].id;
-  if (!goals.includes(createGoal)) createGoal = goals[Math.floor(goals.length / 2)];
-  renderCreateChips();
 });
 net.on('joined', (msg) => {
   if (msg.mode === 'coop') {
@@ -693,6 +684,8 @@ net.on('joined', (msg) => {
   input.releaseAll();
   lastState = '';
   hud.reset();
+  feel.reset();
+  helpOnStart();
   center('', '', false);
 });
 net.on('map', (msg) => {
@@ -735,6 +728,7 @@ function updateHud(dt) {
   ui.hpBar.classList.toggle('mid', hp > 25 && hp <= 50);
   ui.fuelFill.style.width = `${Math.max(0, h.fuel)}%`;
   hud.update(h, dt);
+  feel.update(h, dt);
   if (mode !== 'solo') setText(ui.netinfo, `${Math.round(h.rtt)} MS`);
   if (mode === 'solo' || mode === 'coop') {
     updateWaveHud();

@@ -81,7 +81,9 @@ export const MAP_IDS = Object.keys(MAPS).filter((id) => !MAPS[id].hidden);
 export function buildMap(id, seed) {
   const def = MAPS[id] ? MAPS[id] : MAPS.landing;
   const terrain = new Terrain(def.w, def.h);
-  def.build(new Painter(terrain), mulberry32(seed >>> 0));
+  const P = new Painter(terrain);
+  def.build(P, mulberry32(seed >>> 0));
   pinFloating(terrain, CRYSTAL.map(pal), def.crystals !== false);
-  return { id: MAPS[id] ? id : 'landing', name: def.name, terrain, spawns: def.spawns };
+  // `cores`: indestructible cell rects [x0, y0, x1, y1] under islands and key platforms.
+  return { id: MAPS[id] ? id : 'landing', name: def.name, terrain, spawns: def.spawns, cores: P.cores };
 }

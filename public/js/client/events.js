@@ -44,7 +44,7 @@ export const events = {
         if (ev.s === mine) {
           sfx.play('hurt', ev.x);
           fx.shake(Math.min(0.5, 0.1 + ev.d / 120));
-          if (this.onHurt) this.onHurt(ev.d);
+          if (this.onHurt) this.onHurt(ev);
         }
         break;
       }

@@ -80,6 +80,7 @@ export function drawText(ctx, text, x, y, color, scale = 1, align = 'center') {
 
 export class Fx {
   constructor() {
+    this.shakeMul = 1; // screen shake setting (0 = off)
     this.parts = [];
     this.lines = [];
     this.rings = [];
@@ -110,7 +111,7 @@ export class Fx {
   }
 
   shake(v) {
-    this.trauma = Math.min(1, this.trauma + v);
+    this.trauma = Math.min(1, this.trauma + v * this.shakeMul);
   }
 
   offset() {

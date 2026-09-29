@@ -202,6 +202,19 @@ export class Sfx {
         this.tone({ type: 'sine', f0: 520, gain: 0.1, decay: 0.2 });
         this.tone({ type: 'sine', f0: 780, gain: 0.1, decay: 0.3, delay: 0.12 });
         break;
+      case 'streak':
+        // Rising power chord; `scale` pitches it up for bigger multi-kills.
+        for (const [i, f] of [392, 523, 659, 784].entries()) {
+          this.tone({ type: 'square', f0: f * scale, gain: 0.08, decay: 0.12, delay: i * 0.05 });
+          this.tone({ type: 'triangle', f0: f * scale * 2, gain: 0.04, decay: 0.1, delay: i * 0.05 });
+        }
+        this.tone({ type: 'sawtooth', f0: 1046 * scale, f1: 1568 * scale, gain: 0.06, decay: 0.3, delay: 0.2 });
+        break;
+      case 'beat':
+        // Low heartbeat for critical health: lub-dub.
+        this.tone({ type: 'sine', f0: 70, f1: 45, gain: 0.5 * scale, decay: 0.12 });
+        this.tone({ type: 'sine', f0: 62, f1: 40, gain: 0.35 * scale, decay: 0.12, delay: 0.16 });
+        break;
       case 'beep':
         this.tone({ type: 'square', f0: 440, gain: 0.1, decay: 0.14 });
         break;

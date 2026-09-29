@@ -1,11 +1,12 @@
 import { MAT_EMPTY } from '../constants.js';
 import {
-  barrel, barrelCluster, bridge, crate, crateStack, glassCase, house, sandbags, tower, watchtower, waterTower,
+  brickWall, bridge, crate, crateStack, footing, glassCase, house, sandFill, sandbags, tower, watchtower, waterTower,
 } from './props.js';
-import { D, MAT_BEAM, MAT_GLASS, MAT_METAL, MAT_ROCK, S, bedrock, dune, ledge, smooth, tnt } from './painter.js';
+import { D, MAT_BEAM, MAT_GLASS, MAT_METAL, MAT_ROCK, S, bedrock, core, dune, islandCore, ledge, smooth } from './painter.js';
 
 // Big desert outpost (1200x600 cells): a hollow three-storey fort in the middle, bunkers,
 // shipping containers, two tiers of floating islands and raised plateaus at both edges.
+// Survival is played here: no explosives, and the fort roof and the islands never break away.
 export function buildOutpost(P, rnd) {
   const W = P.t.w;
   const floor = P.t.h - 12;
@@ -91,11 +92,11 @@ export function buildOutpost(P, rnd) {
     }
   });
 
-  // Fort shell: thick concrete sides, doors and windows, one-way floors inside, crenellated roof.
+  // Fort shell: thick stone sides, doors and windows, one-way floors inside, crenellated roof.
   const WALL = '#6b6f8c';
   const TRIM = '#8a8fb0';
-  P.rect(fx0 - 6, fTop, fx0, fBase + 8, S, WALL);
-  P.rect(fx1, fTop, fx1 + 6, fBase + 8, S, WALL);
+  P.rect(fx0 - 6, fTop, fx0, fBase + 8, MAT_ROCK, WALL);
+  P.rect(fx1, fTop, fx1 + 6, fBase + 8, MAT_ROCK, WALL);
   P.rect(fx0 - 6, fTop - 6, fx1 + 6, fTop, S, WALL);
   P.rect(fx0 - 6, fTop - 6, fx1 + 6, fTop - 5, null, TRIM);
   for (let x = fx0 - 6; x < fx1 + 6; x += 12) P.rect(x, fTop - 12, x + 6, fTop - 6, S, WALL);
@@ -114,6 +115,11 @@ export function buildOutpost(P, rnd) {
   }
   P.rect(fx0 - 6, fBase, fx1 + 6, fBase + 8, S, WALL);
   P.textCenter('OUTPOST', W / 2, fTop + 8, 1, D, '#ffd23f');
+  // The middle of the roof is unbreakable (the crew always respawns up there), and so are the
+  // reinforced wall sections between the doors and the first-floor windows that hold that floor.
+  core(P, fx0 + 8, fTop - 6, fx1 - 8, fTop, null);
+  core(P, fx0 - 6, fBase - storey - 4, fx0, fBase - 34, null);
+  core(P, fx1, fBase - storey - 4, fx1 + 6, fBase - 34, null);
 
   // Half-dome bunkers with a firing slit.
   for (const x of [330, W - 330]) {
@@ -149,7 +155,7 @@ export function buildOutpost(P, rnd) {
     P.disc(x - 3, g - 8, 3.5, null, '#a3839a');
   }
 
-  // Floating islands, two tiers.
+  // Floating islands, two tiers, each on an unbreakable rock core.
   for (const [cx, cy, w] of [
     [240, 330, 72],
     [W - 240, 330, 72],
@@ -167,6 +173,7 @@ export function buildOutpost(P, rnd) {
       }
       if (rnd() < 0.16) P.behind(() => P.rect(x, cy + depth, x + 1, cy + depth + 2 + Math.floor(rnd() * 5), D, '#7a4232'));
     }
+    islandCore(P, cx, cy, w);
   }
 
   // Wooden one-way ledges on posts.
@@ -181,12 +188,10 @@ export function buildOutpost(P, rnd) {
     ledge(P, x0, x1, y, ground);
   }
 
-  // Packed-sand mounds at the edges and TNT stashes.
+  // Packed-sand mounds at the edges, a crate on the top island.
   const SANDS = ['#f2c078', '#e8b064', '#f7d08e'];
   for (const [x, half, hgt] of [[60, 40, 10], [W - 60, 40, 10]]) dune(P, x, ground(x) + 1, half, hgt, SANDS);
-  for (const x of [285, W - 285]) tnt(P, x - 5, ground(x) - 10);
-  tnt(P, W / 2 - 5, 118, 10, 10);
-  for (const x of [W / 2 - 30, W / 2 + 22]) tnt(P, x, fBase - 10, 8, 10);
+  crate(P, W / 2 - 5, 128, 10);
 
   props(P, W, ground, { fx0, fx1, fBase, storey });
 }
@@ -208,14 +213,20 @@ function props(P, W, ground, fort) {
     watchtower(P, m(410), ground);
     crate(P, m(262, 12), flat(262, 12));
     crate(P, m(264, 9), flat(262, 12) - 12, 9);
-    barrel(P, m(274, 7), flat(274, 7));
-    for (const x of [398, 436]) barrel(P, m(x, 7), 225);
+    crate(P, m(275, 8), flat(275, 8), 8);
+    // Brick wall in front of the bunker.
+    const bw = m(282, 16);
+    footing(P, bw, bw + 16, box(bw, bw + 16));
+    brickWall(P, bw, bw + 16, box(bw, bw + 16), 12);
+    // Upper islands: a parapet on the outer edge and crates.
+    brickWall(P, m(396, 10), m(396, 10) + 10, 225, 8);
     crate(P, m(413, 12), 225);
+    crate(P, m(432, 9), 225, 9);
     sandbags(P, m(527, 20), m(527, 20) + 20, flat(527, 20), 4);
-    // Fort storeys: crates and barrels to hide behind (and blow up).
+    // Fort storeys: crates to hide behind (and blow up).
     const inner = side > 0 ? fx0 + 1 : fx1 - 14;
     crate(P, inner, fBase - storey);
-    barrel(P, side > 0 ? inner + 14 : inner - 8, fBase - storey);
+    crate(P, side > 0 ? inner + 14 : inner - 10, fBase - storey, 9);
     crate(P, side > 0 ? fx0 + 20 : fx1 - 33, fBase - storey * 2);
     crate(P, side > 0 ? fx0 + 22 : fx1 - 31, fBase - storey * 2 - 12, 9);
     crateStack(P, m(580, 20), fBase, 2, 10);
@@ -226,17 +237,16 @@ function props(P, W, ground, fort) {
     // Broken sky bridge from the upper island toward the fort roof: the middle gap lets the
     // roof spawn drop through and makes you jump it.
     bridge(P, m(449, 141), 225, m(449, 141) + 141, 225, [m(478, 3), m(553, 3)]);
-    // Barrels stacked on both shipping containers.
+    // Sandbag nests on both shipping containers.
     for (const cx of [240, 505]) {
       const x = side > 0 ? cx : W - cx;
-      barrelCluster(P, x - 11, Math.min(ground(x - 20), ground(x + 20)) - 18, 3);
+      sandbags(P, x - 14, x + 14, Math.min(ground(x - 20), ground(x + 20)) - 18, 2);
     }
-    // Glass fuel silo of barrels, crates on the low ledge.
+    // Glass sand silo, crates on the low ledge.
     const sx = m(369, 11);
     const sg = Math.min(ground(sx), ground(sx + 10));
     glassCase(P, sx, sx + 11, sg, 24);
-    barrel(P, sx + 2, sg - 2);
-    barrel(P, sx + 2, sg - 12);
+    sandFill(P, sx + 2, sg - 16, sx + 9, sg - 2);
     crateStack(P, m(330, 20), 372, 2, 10);
   }
 }

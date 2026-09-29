@@ -80,6 +80,7 @@ export const HITBOX = { HW: 8, H: 58 };
 
 export const RULES = {
   HP: 100,
+  WORLD_DAMAGE: 0.5, // TNT chains and burning terrain hit at half strength and never finish anyone
   RESPAWN: 1.5,
   SHIELD: 1,
   FUEL: 100,

@@ -19,6 +19,10 @@
       <canvas id="view" width="800" height="450"></canvas>
 
       <div id="hud" class="hidden">
+        <div id="vignette"></div>
+        <div id="dmgdir"></div>
+        <div id="callout" class="hidden"></div>
+        <div id="recap" class="hidden"></div>
         <div id="scoreboard">
           <div class="side s0"><span class="nm">P1</span><b class="sc">0</b></div>
           <div class="mid">
@@ -36,9 +40,7 @@
         <div id="netinfo"></div>
         <div id="killfeed"></div>
         <div id="meters">
-          <div class="m"><span>WORLD DESTROYED</span><b id="destroyed">0%</b></div>
-          <div class="bar" id="destroyed-bar"><i></i></div>
-          <div class="m"><span>ARSENAL</span><b id="arsenal">-</b></div>
+          <div class="m keyhint"><kbd>H</kbd> CONTROLS <kbd>ESC</kbd> SETTINGS</div>
           <div class="m hidden" id="armory"><span>ARMORY DROP IN</span><b id="armory-t">20S</b></div>
         </div>
         <div id="unlock" class="hidden">
@@ -58,7 +60,7 @@
           </div>
           <div class="w-row chips" id="w-maps"></div>
           <div class="pool-picker" id="w-pool"></div>
-          <div class="w-hint">WARM UP WHILE YOU WAIT - EVERYTHING IS DESTRUCTIBLE, BARRELS CHAIN - PRESS B TO BUILD</div>
+          <div class="w-hint">WARM UP WHILE YOU WAIT - PRESS B TO BUILD</div>
         </div>
 
         <div id="coop-wait" class="waitbox hidden">
@@ -70,7 +72,7 @@
             <button class="btn small" id="btn-copy3" type="button">COPY INVITE LINK</button>
             <button class="btn small primary" id="btn-coop-start" type="button">START THE WAVES</button>
           </div>
-          <div class="w-hint">SHARE THE CODE OR LINK WITH UP TO 3 FRIENDS - ANYONE CAN PICK WEAPONS OR START</div>
+          <div class="w-hint">SHARE THE LINK WITH UP TO 3 FRIENDS</div>
         </div>
 
         <div id="bottom">
@@ -82,7 +84,7 @@
           <div id="hotbar"></div>
         </div>
 
-        <div id="help">
+        <div id="help" class="hidden">
           <div class="help-title">CONTROLS <span class="dim">(H)</span></div>
           <div class="row"><span class="keys"><kbd data-key="KeyA">A</kbd><kbd data-key="KeyD">D</kbd></span>RUN</div>
           <div class="row"><span class="keys"><kbd>SHIFT</kbd></span>SPRINT</div>
@@ -93,7 +95,6 @@
           <div class="row"><span class="keys"><kbd>R-CLICK</kbd></span>GRENADE / DETONATE C4</div>
           <div class="row"><span class="keys"><kbd>1-9</kbd></span>WEAPONS, <kbd>Q</kbd> LAST, WHEEL CYCLES</div>
           <div class="row"><span class="keys"><kbd data-key="KeyB">B</kbd></span>BUILDER - WALLS, RAMPS, FLOORS</div>
-          <div class="row dim">1V1: EVERY ALLOWED WEAPON FROM THE START, CRATES HEAL AND REFILL. SURVIVAL: START WITH 4, EACH CLEARED WAVE UNLOCKS THE NEXT</div>
           <div class="row"><span class="keys"><kbd>ESC</kbd></span>MENU</div>
         </div>
       </div>
@@ -112,26 +113,23 @@
             <button class="btn primary wide" id="btn-join-invite" type="button">JOIN ROOM <b id="invite-code"></b></button>
           </div>
 
-          <button class="btn primary wide" id="btn-quick" type="button">QUICK MATCH - 1V1 ONLINE</button>
+          <div class="section-title">1V1 ONLINE</div>
+          <div class="btn-row">
+            <button class="btn primary" id="btn-quick" type="button">QUICK MATCH</button>
+            <button class="btn" id="btn-create" type="button">PLAY A FRIEND</button>
+          </div>
 
           <div class="section survival">
-            <div class="section-title">SURVIVAL - HOLD THE OUTPOST AGAINST WAVES</div>
-            <button class="btn solo wide" id="btn-solo" type="button">SURVIVAL - SOLO</button>
+            <div class="section-title">SURVIVAL VS WAVES</div>
+            <div class="btn-row">
+              <button class="btn solo" id="btn-solo" type="button">SOLO</button>
+              <button class="btn coop" id="btn-coop" type="button">CO-OP (2-4)</button>
+            </div>
             <div class="best dim center" id="solo-best"></div>
-            <button class="btn coop wide" id="btn-coop" type="button">SURVIVAL - ONLINE CO-OP (2-4 PLAYERS)</button>
-            <div class="hint dim">CO-OP GIVES YOU A CODE - FRIENDS JOIN WITH IT BELOW</div>
           </div>
 
           <div class="section">
-            <div class="section-title">CREATE A PRIVATE 1V1 ROOM</div>
-            <div class="chips" id="create-maps"></div>
-            <div class="chips" id="create-goals"></div>
-            <div class="pool-picker" id="create-pool"></div>
-            <button class="btn wide" id="btn-create" type="button">CREATE ROOM</button>
-          </div>
-
-          <div class="section">
-            <div class="section-title">JOIN WITH A CODE - 1V1 OR CO-OP</div>
+            <div class="section-title">GOT A CODE?</div>
             <div class="join-row">
               <input id="code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE" />
               <button class="btn" id="btn-join" type="button">JOIN</button>
@@ -148,7 +146,11 @@
           <div class="dim center" id="pause-note">THE MATCH KEEPS RUNNING</div>
           <button class="btn primary wide" id="btn-resume" type="button">RESUME</button>
           <button class="btn wide" id="btn-copy2" type="button">COPY INVITE LINK</button>
-          <button class="btn wide" id="btn-mute" type="button">SOUND: ON</button>
+          <div class="settings">
+            <button class="toggle" id="btn-mute" type="button"><span>SOUND</span><b>ON</b></button>
+            <button class="toggle" id="btn-shake" type="button"><span>SCREEN SHAKE</span><b>ON</b></button>
+            <button class="toggle" id="btn-help" type="button"><span>CONTROLS PANEL</span><b>OFF</b></button>
+          </div>
           <button class="btn wide danger" id="btn-leave" type="button">LEAVE MATCH</button>
         </div>
       </div>

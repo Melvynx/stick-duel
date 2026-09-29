@@ -404,21 +404,164 @@ body {
   font-weight: 700;
 }
 
-#meters #destroyed {
-  color: #ff9f43;
-}
-
 #meters #armory-t {
   color: var(--accent);
 }
 
-#destroyed-bar {
-  height: calc(var(--u) * 3);
+#meters .keyhint {
+  justify-content: flex-start;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  font-size: calc(var(--u) * 5);
+  opacity: 0.75;
 }
 
-#destroyed-bar i {
+#meters .keyhint kbd {
+  font-size: calc(var(--u) * 4);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 1.5);
+}
+
+#meters .keyhint kbd + kbd {
+  margin-left: calc(var(--u) * 3);
+}
+
+#hotbar .slot.gone {
+  display: none;
+}
+
+/* ---------- game feel: low hp, hit direction, streaks, death recap ---------- */
+
+#vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 0, 20, 0.35) 75%, rgba(120, 0, 10, 0.85) 100%);
+  transition: opacity 0.25s;
+}
+
+#vignette.beat {
+  animation: beat 0.9s ease-out infinite;
+}
+
+@keyframes beat {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  12% {
+    filter: brightness(1.6);
+  }
+  28% {
+    filter: brightness(1.1);
+  }
+  40% {
+    filter: brightness(1.45);
+  }
+}
+
+#dmgdir {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 0;
-  background: linear-gradient(90deg, #ffd23f, #ff7b22, #ff3b3b);
+  height: 0;
+}
+
+#dmgdir i {
+  position: absolute;
+  left: calc(var(--u) * -18);
+  top: calc(var(--u) * -9);
+  width: calc(var(--u) * 36);
+  height: calc(var(--u) * 18);
+  transform: rotate(var(--a)) translateX(calc(var(--u) * 38)) rotate(90deg);
+  border-top: calc(var(--u) * 4) solid rgba(255, 50, 50, 0.95);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  filter: drop-shadow(0 0 calc(var(--u) * 3) rgba(255, 0, 0, 0.9));
+  opacity: var(--k);
+  animation: hitdir 0.9s ease-out forwards;
+}
+
+@keyframes hitdir {
+  0% {
+    opacity: var(--k);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+#callout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--u) * 78);
+  text-align: center;
+  font-size: calc(var(--u) * 16);
+  font-weight: 700;
+  letter-spacing: calc(var(--u) * 1);
+  text-shadow: 0 calc(var(--u) * 1.5) 0 #000, calc(var(--u) * 1.5) 0 0 #000, calc(var(--u) * -1.5) 0 0 #000,
+    0 calc(var(--u) * -1.5) 0 #000, 0 0 calc(var(--u) * 12) currentColor;
+}
+
+#callout.pop {
+  animation: callout 1.5s cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+}
+
+@keyframes callout {
+  0% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  12% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9) translateY(calc(var(--u) * -6));
+    opacity: 0;
+  }
+}
+
+#recap {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 3);
+  white-space: nowrap;
+  background: rgba(14, 11, 28, 0.85);
+  border: calc(var(--u) * 1) solid #000;
+  box-shadow: inset 0 0 0 calc(var(--u) * 1) rgba(255, 59, 59, 0.35);
+  padding: calc(var(--u) * 4) calc(var(--u) * 10);
+  font-size: calc(var(--u) * 7);
+  color: var(--dim);
+  animation: recap 0.35s ease-out;
+}
+
+#recap b {
+  font-size: calc(var(--u) * 10);
+}
+
+#recap .w {
+  font-size: calc(var(--u) * 5);
+  opacity: 0.8;
+}
+
+#recap .w::before {
+  content: 'WITH ';
+}
+
+@keyframes recap {
+  from {
+    transform: translate(-50%, calc(var(--u) * 8));
+    opacity: 0;
+  }
 }
 
 #unlock {
@@ -921,7 +1064,7 @@ input:focus {
   gap: calc(var(--u) * 6);
 }
 
-/* ---------- weapon pool picker (create section, 1v1 waiting room, co-op lobby) ---------- */
+/* ---------- weapons setting (1v1 waiting room, co-op lobby) ---------- */
 
 .pool-picker {
   display: flex;
@@ -939,45 +1082,10 @@ input:focus {
   margin-right: 2px;
 }
 
-.pool-custom {
-  font-size: 10px;
-  color: var(--p0);
-  margin-left: 2px;
-}
-
-.chip.gun {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-}
-
-.chip.gun canvas {
-  width: calc(var(--sw) * 1px);
-  height: calc(var(--sh) * 1px);
-  image-rendering: pixelated;
-}
-
-.chip.gun:not(.on) canvas {
-  opacity: 0.3;
-  filter: grayscale(1);
-}
-
-.chip.gun:not(.on) span {
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
-}
-
-.chip.gun.fixed {
-  cursor: default;
-  background: #1d4a52;
-  color: var(--ink);
-  outline-color: var(--line);
-}
-
-.section .hint {
-  font-size: 10px;
-  text-align: center;
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .section.survival .best {
@@ -999,9 +1107,7 @@ input:focus {
 }
 
 #waiting .pool-label,
-#coop-wait .pool-label,
-#waiting .pool-custom,
-#coop-wait .pool-custom {
+#coop-wait .pool-label {
   font-size: calc(var(--u) * 6);
 }
 
@@ -1010,18 +1116,6 @@ input:focus {
   font-size: calc(var(--u) * 6);
   padding: calc(var(--u) * 3) calc(var(--u) * 5);
   border-width: calc(var(--u) * 1);
-}
-
-#waiting .chip.gun,
-#coop-wait .chip.gun {
-  gap: calc(var(--u) * 3);
-  padding: calc(var(--u) * 2) calc(var(--u) * 4);
-}
-
-#waiting .chip.gun canvas,
-#coop-wait .chip.gun canvas {
-  width: calc(var(--u) * var(--sw) * 0.75);
-  height: calc(var(--u) * var(--sh) * 0.75);
 }
 
 #hotbar .slot.build {
@@ -1034,4 +1128,44 @@ input:focus {
 
 #hotbar .slot.nade {
   margin-left: calc(var(--u) * 4);
+}
+
+/* ---------- pause settings ---------- */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 4px 0;
+}
+
+.toggle {
+  font-family: inherit;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--line);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.toggle:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.toggle b {
+  color: var(--good);
+  min-width: 3em;
+  text-align: right;
+}
+
+.toggle b.off {
+  color: var(--dim);
+  opacity: 0.6;
 }
