@@ -65,7 +65,7 @@ export class Game {
     this.flameTick = new Array(this.n).fill(0);
     this.flameW = new Array(this.n).fill(0);
     this.buildN = 0;
-    this.hazard = Array.from({ length: this.n }, () => ({ crushT: 0, fire: 0 }));
+    this.hazard = Array.from({ length: this.n }, () => ({ fire: 0 }));
     this.crateT = RULES.CRATE_FIRST;
     this.ammoT = RULES.AMMO_FIRST;
     this.armoryT = this.armoryEvery;

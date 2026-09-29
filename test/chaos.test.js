@@ -130,3 +130,26 @@ test('1v1 pace: fast respawn with a short spawn shield', () => {
   assert.ok(!g.players[1].dead, 'respawned');
   assert.ok(g.players[1].shield > 0 && g.players[1].shield <= RULES.SHIELD);
 });
+
+test('falling debris never damages players', async () => {
+  const { OP } = await import('../shared/sim.js');
+  const { MAT_SOLID } = await import('../shared/constants.js');
+  const g = new Game('flat', 7, 2);
+  g.addPlayer(0);
+  const p = g.players[0];
+  for (let i = 0; i < 90; i++) g.update(); // settle, spawn shield wears off
+  p.shield = 0;
+  const hp = p.hp;
+  // A loose brick slab right above the head: it has no support and falls onto the player.
+  const cx = Math.floor(p.x / 2);
+  const cy = Math.floor((p.y - 150) / 2);
+  g.op(-1, OP.PLACE, cx - 10, cy, 20, 8, MAT_SOLID, 0);
+  let landed = false;
+  for (let i = 0; i < 150; i++) {
+    g.update();
+    if (g.sim.landings.length) landed = true;
+  }
+  assert.ok(landed, 'the slab fell');
+  assert.equal(p.dead, false);
+  assert.equal(p.hp, hp);
+});

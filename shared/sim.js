@@ -697,25 +697,6 @@ export class TerrainSim {
     if (b.fall > 2) this.landings.push({ x: (b.x + b.w / 2) * 2, y: (b.y + h) * 2, w: b.w * 2, n: b.n, v: b.vy / 256 });
   }
 
-  // Body id overlapping a player-sized world rect, if any piece is falling fast there.
-  crushing(x0, y0, x1, y1) {
-    if (!this.bodies.length) return null;
-    const w = this.w;
-    const cx0 = Math.max(0, Math.floor(x0 / 2));
-    const cx1 = Math.min(w - 1, Math.floor(x1 / 2));
-    const cy0 = Math.max(0, Math.floor(y0 / 2));
-    const cy1 = Math.min(this.h - 1, Math.floor(y1 / 2));
-    for (let y = cy0; y <= cy1; y++) {
-      for (let x = cx0; x <= cx1; x++) {
-        const id = this.body[y * w + x];
-        if (!id) continue;
-        const b = this.bodies.find((q) => q.id === id);
-        if (b && b.vy > 1.4 * 256) return b;
-      }
-    }
-    return null;
-  }
-
   // True when a burning cell overlaps the world rect.
   burningIn(x0, y0, x1, y1) {
     const t = this.terrain;

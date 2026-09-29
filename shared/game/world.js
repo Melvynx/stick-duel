@@ -1,10 +1,9 @@
 import { DT, PHYS } from '../constants.js';
 import { playerBox } from '../geom.js';
-import { CRUSH_W, FIRE_W } from '../weapons.js';
+import { FIRE_W } from '../weapons.js';
 
 const FIRE_DPS = 30;
 const FIRE_EVERY = 6;
-const CRUSH_COOLDOWN = 20;
 
 // Sandbox world glue: every terrain change goes through `op` so clients replay it in lockstep.
 export const world = {
@@ -42,16 +41,7 @@ export const world = {
       if (!this.present[s] || p.dead) continue;
       const [x0, y0, x1, y1] = playerBox(p.x, p.y);
       const hz = this.hazard[s];
-      if (hz.crushT > 0) hz.crushT--;
-      else {
-        const b = this.sim.crushing(x0, y0 - 2, x1, y1 - 20);
-        if (b) {
-          hz.crushT = CRUSH_COOLDOWN;
-          const dmg = Math.min(100, (34 * b.vy) / 256);
-          this.damage(s, dmg, this.worldBlame(s), CRUSH_W, 0, 260, p.x, p.y - PHYS.HEIGHT, true);
-          if (p.dead) continue;
-        }
-      }
+      // Falling debris never hurts: collapses are scenery, only weapons, blasts and fire deal damage.
       if (this.sim.burningIn(x0, y0, x1, y1)) hz.fire += FIRE_DPS * DT;
       if (hz.fire > 0 && this.tick % FIRE_EVERY === 0) {
         const d = hz.fire;
