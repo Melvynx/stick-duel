@@ -148,7 +148,7 @@ export class Game {
     this.emit({ e: 'spawn', s: slot, x: r1(p.x), y: r1(p.y) });
   }
 
-  // Applies one client input for `slot`. `inp` = { s, b, a, w, v }.
+  // Applies one client input for `slot`. `inp` = { s, b, a, w, v, k } (`k`: builder choice, see build.js).
   applyInput(slot, inp) {
     if (!this.present[slot]) return;
     const p = this.players[slot];
@@ -156,9 +156,11 @@ export class Game {
     const lag = Math.max(0, Math.min(MAX_REWIND, this.tick - (inp.v | 0)));
     stepPlayer(p, inp, this.terrain, out, { noFire: !this.allowFire });
     for (const a of out) {
-      if (a.k === 'fire') this.fire(slot, a, inp.s, lag);
+      if (a.k === 'fire') this.fire(slot, a, inp.s, lag, inp.k | 0);
       else if (a.k === 'nade') this.throwNade(slot, a, inp.s);
       else if (a.k === 'det') this.detonateC4(slot);
+      else if (a.k === 'melee') this.melee(slot, a.a);
+      else if (a.k === 'bump') this.brush(slot, a.d);
     }
     if (p.flaming) this.continuous(slot, lag);
   }

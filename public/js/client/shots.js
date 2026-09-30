@@ -4,7 +4,8 @@ import { PROJ } from '/shared/projectiles.js';
 import { BEAM, FLAME, GRENADE, RAIL, SPRAY, W, WEAPONS, owns, pelletDirs, poolBar } from '/shared/weapons.js';
 import { jetNozzle, muzzleWorld } from '../render.js';
 
-const BIG_SHOT = [1, 1, 2, 2, 2, 1, 2, 0, 0, 0, 0, 2];
+const BIG_SHOT = [1, 1, 2, 2, 2, 1, 2, 0, 0, 0, 0, 2, 2, 1];
+const LASER = 1400; // px: reach of the sniper's laser sight
 const TRACER = '#fff3a8';
 const LOOP_TOOL = { flame: 0, beam: 1, spray: 2 };
 const GHOST_KIND = { rocket: PROJ.ROCKET, mirv: PROJ.MIRV, quake: PROJ.QUAKE };
@@ -47,6 +48,41 @@ export const shots = {
     this.wantW = w;
   },
 
+  // Laser sight of every sniper on screen: warns the target and shows the shooter the line.
+  // `others` = visible remote slots, `mine` = the local player's drawn position (null if dead).
+  drawLasers(ctx, others, mine) {
+    const list = others.map((s) => [s, this.remotes[s], this.remotes[s].x, this.remotes[s].y, this.remotes[s].aim]);
+    if (mine && this.wantW === W.sniper) list.push([this.slot, this.me, mine.x, mine.y, this.aim]);
+    for (const [s, p, x, y, aim] of list) {
+      if (p.w !== W.sniper && !(s === this.slot && this.wantW === W.sniper)) continue;
+      const mz = muzzleWorld(x, y, aim, W.sniper);
+      const dx = Math.cos(aim);
+      const dy = Math.sin(aim);
+      const hit = this.terrain.raycast(mz.x, mz.y, dx, dy, LASER);
+      let d = hit >= 0 ? hit : LASER;
+      for (let o = 0; o < this.present.length; o++) {
+        const q = this.playerAt(o);
+        if (o === s || !q || q.dead || !this.present[o]) continue;
+        const t = segAabb(mz.x, mz.y, mz.x + dx * d, mz.y + dy * d, ...playerBox(q.x, q.y));
+        if (t >= 0) d *= t;
+      }
+      const ex = (mz.x + dx * d) / 2;
+      const ey = (mz.y + dy * d) / 2;
+      ctx.save();
+      ctx.globalAlpha = 0.6 + Math.sin(this.time * 14) * 0.1;
+      ctx.strokeStyle = '#ff3b3b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mz.x / 2, mz.y / 2);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#ff5a5a';
+      ctx.fillRect(ex - 1, ey - 1, 2, 2);
+      ctx.restore();
+    }
+  },
+
   localAction(a, seq) {
     const me = this.me;
     switch (a.k) {
@@ -65,6 +101,9 @@ export const shots = {
         break;
       case 'det':
         this.sfx.play('det', me.x);
+        break;
+      case 'melee':
+        this.meleeFx(me.x, me.y - PHYS.HEIGHT / 2, a.a);
         break;
       case 'fire': {
         this.shotFx(this.slot, a.w, a.a, a.x, a.y, seq, true);

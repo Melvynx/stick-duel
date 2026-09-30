@@ -1169,3 +1169,47 @@ input:focus {
   color: var(--dim);
   opacity: 0.6;
 }
+
+/* Builder choice: piece chips and the style swatch, shown while the builder is held. */
+#buildbar {
+  position: absolute;
+  bottom: calc(var(--u) * 42);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  font-size: calc(var(--u) * 6);
+  color: var(--ink);
+  pointer-events: none;
+}
+
+#buildbar .bb-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  background: rgba(0, 0, 0, 0.72);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 3);
+}
+
+#buildbar .chip {
+  padding: 0 calc(var(--u) * 2);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+#buildbar .chip.on {
+  background: var(--ink);
+  color: #000;
+}
+
+#buildbar #bb-swatch {
+  display: inline-block;
+  width: calc(var(--u) * 6);
+  height: calc(var(--u) * 6);
+  outline: calc(var(--u) * 1) solid #000;
+}
+
+#buildbar .dim {
+  color: rgba(255, 255, 255, 0.55);
+}

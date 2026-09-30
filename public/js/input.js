@@ -15,6 +15,7 @@ const MAP = {
   KeyE: BTN.ALT,
   ShiftLeft: BTN.SPRINT,
   ShiftRight: BTN.SPRINT,
+  KeyF: BTN.MELEE,
 };
 
 // Hotbar keys in unlock order: 1-9, 0, -, = (physical positions, so AZERTY works too).
@@ -29,6 +30,10 @@ export class Input {
     this.my = 225;
     // { bar: numbered hotbar slot }, { builder: true }, { abs: weapon }, { last: true } or { rel: +1/-1 }
     this.weaponReq = null;
+    // Builder choice changes: { piece: +1/-1 } (R, Shift+R) or { style: +1 } (T).
+    this.buildReq = null;
+    // Buttons pressed since the last tick: a click or tap released before the tick still counts once.
+    this.tapped = 0;
     this.handlers = {};
     this.enabled = true;
 
@@ -52,8 +57,14 @@ export class Input {
       else if (BAR[e.code] !== undefined) this.weaponReq = { bar: BAR[e.code] };
       if (e.code === 'KeyQ' && !e.repeat) this.weaponReq = { last: true };
       if (e.code === 'KeyB' && !e.repeat) this.weaponReq = { builder: true };
+      // Presses add up so several taps inside one tick are all applied.
+      if ((e.code === 'KeyR' || e.code === 'KeyT') && !e.repeat) {
+        const r = this.buildReq || (this.buildReq = { piece: 0, style: 0 });
+        r[e.code === 'KeyR' ? 'piece' : 'style'] += e.shiftKey ? -1 : 1;
+      }
       if (MAP[e.code] !== undefined) {
         this.keys.add(e.code);
+        this.tapped |= MAP[e.code];
         if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
       }
     });
@@ -63,6 +74,7 @@ export class Input {
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.mouseBtn = 0;
+      this.tapped = 0;
     });
 
     canvas.addEventListener('mousedown', (e) => {
@@ -70,10 +82,13 @@ export class Input {
       this.emit('gesture');
       if (e.button === 0) this.mouseBtn |= BTN.FIRE;
       if (e.button === 2) this.mouseBtn |= BTN.ALT;
+      if (e.button === 1) this.mouseBtn |= BTN.MELEE;
+      this.tapped |= this.mouseBtn;
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseBtn &= ~BTN.FIRE;
       if (e.button === 2) this.mouseBtn &= ~BTN.ALT;
+      if (e.button === 1) this.mouseBtn &= ~BTN.MELEE;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', (e) => this.track(e.clientX, e.clientY));
@@ -106,8 +121,10 @@ export class Input {
   }
 
   buttons() {
+    const tapped = this.tapped;
+    this.tapped = 0;
     if (!this.enabled) return 0;
-    let b = this.mouseBtn;
+    let b = this.mouseBtn | tapped;
     for (const k of this.keys) b |= MAP[k] || 0;
     return b;
   }
@@ -120,6 +137,12 @@ export class Input {
   // Aim target in world pixels (the backbuffer is half the world resolution).
   aimWorld() {
     return { x: this.mx * 2, y: this.my * 2 };
+  }
+
+  takeBuildRequest() {
+    const r = this.buildReq;
+    this.buildReq = null;
+    return r;
   }
 
   takeWeaponRequest() {

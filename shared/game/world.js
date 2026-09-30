@@ -2,7 +2,7 @@ import { DT, PHYS } from '../constants.js';
 import { playerBox } from '../geom.js';
 import { FIRE_W } from '../weapons.js';
 
-const FIRE_DPS = 30;
+const FIRE_DPS = 10;
 const FIRE_EVERY = 6;
 
 // Sandbox world glue: every terrain change goes through `op` so clients replay it in lockstep.

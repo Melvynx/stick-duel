@@ -161,12 +161,15 @@ test('world hazards never finish a player and TNT spares whoever set it off', as
   g.addPlayer(1);
   const p = g.players[0];
   p.shield = 0;
+  p.hp = 80;
+  g.damage(0, 500, 1, FIRE_W, 0, 0, p.x, p.y, true);
+  assert.equal(p.hp, RULES.WORLD_FLOOR, 'fire and hazards stop at the floor');
+  g.damage(0, 500, 1, FIRE_W, 0, 0, p.x, p.y, true);
+  assert.equal(p.hp, RULES.WORLD_FLOOR);
   p.hp = 12;
   g.damage(0, 500, 1, FIRE_W, 0, 0, p.x, p.y, true);
-  assert.equal(p.hp, 1);
+  assert.equal(p.hp, 12, 'already below the floor: hazards take nothing more');
   assert.equal(p.dead, false);
-  g.damage(0, 500, 1, FIRE_W, 0, 0, p.x, p.y, true);
-  assert.equal(p.dead, false, 'still standing on 1 hp');
   p.hp = RULES.HP;
   g.explode(p.x, p.y - 20, 'tnt', 0, 40);
   assert.equal(p.hp, RULES.HP, 'own TNT chain does no damage');

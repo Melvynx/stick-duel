@@ -224,13 +224,34 @@ export class Fx {
     }
   }
 
+  // One frame of flamer jet: a wide licking flame, a hot fast core, embers and smoke at the tip.
   flame(x, y, a, range) {
-    for (let i = 0; i < 3; i++) {
-      const aa = a + rand(-0.1, 0.1);
-      const sp = rand(480, 640);
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    for (let i = 0; i < 6; i++) {
+      const aa = a + rand(-0.16, 0.16);
+      const sp = rand(500, 700);
       this.add({
-        k: 'fire', x: x + Math.cos(a) * rand(0, 6), y: y + Math.sin(a) * rand(0, 6), vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp,
-        g: -200, drag: 1.2, life: (range / sp) * rand(0.8, 1.15), t: 0, r0: rand(1, 2), r1: rand(5, 9), stop: true,
+        k: 'fire', x: x + ca * rand(0, 8), y: y + sa * rand(0, 8), vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp,
+        g: -260, drag: 1.4, life: (range / sp) * rand(0.85, 1.2), t: 0, r0: rand(2, 4), r1: rand(10, 17), stop: true, hot: 5,
+      });
+    }
+    for (let i = 0; i < 2; i++) {
+      const aa = a + rand(-0.04, 0.04);
+      const sp = rand(640, 780);
+      this.add({
+        k: 'fire', x, y, vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp, g: 0, drag: 0.6, life: (range / sp) * 0.5, t: 0, r0: 2, r1: 5, stop: true,
+      });
+    }
+    if (Math.random() < 0.6) {
+      const aa = a + rand(-0.3, 0.3);
+      const sp = rand(300, 600);
+      this.add({ k: 'px', x, y, vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp, g: -80, drag: 2, life: rand(0.3, 0.6), t: 0, c: pick(FIRE.slice(0, 3)), s: 1, stop: true });
+    }
+    if (Math.random() < 0.12) {
+      const d = range * rand(0.6, 0.95);
+      this.add({
+        k: 'smoke', x: x + ca * d, y: y + sa * d, vx: ca * 40, vy: rand(-70, -30), life: rand(0.7, 1.2), t: 0, r0: rand(4, 7), r1: rand(14, 22), c: pick(SMOKE),
       });
     }
   }
@@ -425,7 +446,9 @@ export class Fx {
         const s = p.s || 1;
         ctx.fillRect(Math.round(p.x / 2), Math.round(p.y / 2), s * (p.w || 1), s);
       } else if (p.k === 'fire') {
-        const idx = Math.min(FIRE.length - 1, Math.floor(f * FIRE.length * 0.999 + 1));
+        // `hot` particles stop at orange-red: a flamer should read as fire, not soot.
+        const top = p.hot || FIRE.length;
+        const idx = Math.min(top - 1, Math.floor(f * top * 0.999 + 1));
         ctx.fillStyle = FIRE[idx];
         ctx.globalAlpha = f > 0.8 ? (1 - f) * 5 : 1;
         const r = (p.r0 + (p.r1 - p.r0) * f) / 2;

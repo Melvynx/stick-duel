@@ -114,12 +114,12 @@ test('co-op room over websocket: two players, start, shared waves', async () => 
 });
 
 test('weapon pools: presets, sanitizing, retired weapons', () => {
-  for (const w of [W.sand, W.quake]) {
+  for (const w of [W.sand, W.quake, W.cutter]) {
     assert.ok(!UNLOCKS.includes(w), 'retired weapons are never selectable');
     assert.ok(!owns(FULL_POOL, w) && !owns(BASIC_POOL, w));
   }
   assert.ok(owns(BASIC_POOL, W.builder) && owns(FULL_POOL, W.builder), 'the builder is in every preset');
-  assert.deepEqual(poolList(BASIC_POOL), [W.pistol, W.smg, W.shotgun, W.builder, W.rocket, W.rail]);
+  assert.deepEqual(poolList(BASIC_POOL), [W.pistol, W.smg, W.shotgun, W.builder, W.rifle, W.sniper, W.rocket, W.rail]);
   const custom = sanitizePool((1 << W.rocket) | (1 << W.sand) | (1 << W.quake) | (1 << 30));
   assert.equal(custom, (1 << W.rocket) | START_OWNED, 'pistol forced, retired and unknown bits dropped');
   assert.equal(sanitizePool(0), START_OWNED);

@@ -21,6 +21,10 @@ export const BUILD = [
   ['#c9774d', '#b5653f'], // brick
   ['#7c8aa5', '#6a7791'], // steel
   ['#d9b36c', '#c49d56'], // sandstone
+  ['#a8743f', '#8d5d30'], // wood
+  ['#9a95a6', '#827d8f'], // stone
+  ['#3fd9b8', '#2fb597'], // neon
+  ['#4b4560', '#3a354c'], // obsidian
 ];
 export const SAND = ['#e8c77e', '#d9b264', '#f0d592', '#c9a258'];
 export const CRYSTAL = ['#7ef9ff', '#3fc6e0', '#c8fdff'];

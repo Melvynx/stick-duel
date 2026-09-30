@@ -4,15 +4,24 @@ import { COLLIDE, ONEWAY, PASS } from './materials.js';
 import { rampTop } from './sim.js';
 import { BUILD } from './weapons.js';
 
-// Builder pieces, picked by the aim angle so building stays one-click fast:
+// Builder pieces. In AUTO mode the aim angle picks the piece so building stays one-click fast:
 //   flat aim      -> WALL   (1 x wallH blocks, stands on the ground where the aim lands)
 //   diagonal aim  -> RAMP   (45 degree band of `ramp` blocks from your feet, up or down)
 //   steep up      -> FLOOR  (`floor` blocks wide, just above your head)
 //   steep down    -> FLOOR under your feet in the air, BUNKER (walls + roof) on the ground
+// The other modes force one piece; BLOCK, SLAB and PILLAR land on the cursor for detailed work.
 // Everything is grid-snapped to `BUILD.block` cells so pieces line up and chain.
 // Pure: the authority uses it to place pieces, the client to preview them.
-export const PIECE = { WALL: 0, RAMP: 1, FLOOR: 2, BUNKER: 3 };
-export const PIECE_NAMES = ['WALL', 'RAMP', 'FLOOR', 'BUNKER'];
+export const PIECE = { WALL: 0, RAMP: 1, FLOOR: 2, BUNKER: 3, BLOCK: 4, SLAB: 5, PILLAR: 6 };
+export const PIECE_NAMES = ['WALL', 'RAMP', 'FLOOR', 'BUNKER', 'BLOCK', 'SLAB', 'PILLAR'];
+
+// Builder choice sent with every input as `k`: mode (0 = AUTO, else PIECE + 1), style (0 = team
+// colour, else palette BUILD index + 1) and the cursor distance in 4 px steps.
+export const MODE_NAMES = ['AUTO', ...PIECE_NAMES];
+export const STYLE_NAMES = ['TEAM', 'BRICK', 'STEEL', 'SANDSTONE', 'WOOD', 'STONE', 'NEON', 'OBSIDIAN'];
+export const packBuild = (mode, style, dist) => (mode & 7) | ((style & 7) << 3) | (Math.max(0, Math.min(63, Math.round(dist / 4))) << 6);
+export const unpackBuild = (k) => ({ mode: k & 7, style: (k >> 3) & 7, dist: ((k >> 6) & 63) * 4 });
+const CURSOR = new Set([PIECE.BLOCK, PIECE.SLAB, PIECE.PILLAR]);
 
 const B = BUILD.block;
 const SIDE = B * CELL;
@@ -84,17 +93,25 @@ function rowBlocked(t, x0, x1, y) {
   return false;
 }
 
-// Plans the piece for a builder standing at (x, feet) and aiming at `ang`.
+// Plans the piece for a builder standing at (x, feet) and aiming at `ang`, `mode` and `dist`
+// (cursor distance from the shoulder, px) as in `unpackBuild`.
 // Returns { kind, parts, cost, box: [x0, y0, x1, y1] in world px } (no parts: nothing to build).
-export function planPiece(t, x, feet, ang) {
+export function planPiece(t, x, feet, ang, mode = 0, dist = BUILD.cursor) {
   const dx = Math.cos(ang);
   const dy = Math.sin(ang);
   const dir = dx >= 0 ? 1 : -1;
   const my = feet - PHYS.AIM_Y;
-  const kind = pieceKind(ang, dy > 0 && standing(t, x, feet));
+  const kind = mode > 0 && mode <= PIECE_NAMES.length ? mode - 1 : pieceKind(ang, dy > 0 && standing(t, x, feet));
   const self = bodyCells(x, feet);
   let parts;
-  if (kind === PIECE.WALL) {
+  if (CURSOR.has(kind)) {
+    const d = Math.min(dist > 0 ? dist : BUILD.cursor, BUILD.cursor);
+    const bx = Math.floor((x + dx * d) / SIDE);
+    const by = Math.floor((my + dy * d) / SIDE);
+    if (kind === PIECE.BLOCK) parts = [{ x: bx * B, y: by * B, w: B, h: B }];
+    else if (kind === PIECE.SLAB) parts = [{ x: (bx - 1) * B, y: by * B, w: 3 * B, h: B }];
+    else parts = [{ x: bx * B, y: (by - 1) * B, w: B, h: 3 * B }];
+  } else if (kind === PIECE.WALL) {
     const hit = t.raycast(x, my, dx, dy, BUILD.reach);
     const d = hit >= 0 ? Math.max(0, hit - SIDE / 2) : BUILD.air;
     const tx = x + dx * d;

@@ -2,7 +2,8 @@ import { BTN, DT, INTERP_TICKS, PHYS, PLAYER_COLORS, TICK_MS } from '/shared/con
 import { buildMap } from '/shared/maps.js';
 import { createPlayer, stepPlayer, unpackPlayer } from '/shared/player.js';
 import { ALIVE, stepProj, unpackProj } from '/shared/projectiles.js';
-import { FULL_POOL, owns, poolList, sanitizePool } from '/shared/weapons.js';
+import { FULL_POOL, W, owns, poolList, sanitizePool } from '/shared/weapons.js';
+import { builder } from './client/builder.js';
 import { events } from './client/events.js';
 import { interp } from './client/interp.js';
 import { shots } from './client/shots.js';
@@ -211,6 +212,8 @@ export class ClientGame {
 
     const req = input.takeWeaponRequest();
     if (req) this.pickWeapon(req);
+    const breq = input.takeBuildRequest();
+    if (breq) this.changeBuild(breq);
     const b = input.buttons();
     const pressed = b & ~this.prevB;
     this.prevB = b;
@@ -226,6 +229,7 @@ export class ClientGame {
     const rt = this.renderTick();
     const inp = {
       s: ++this.seq, b, a: r3(this.aim), w: this.wantW, v: Math.max(0, Math.floor(rt)), nf: this.roomState === 'countdown',
+      k: this.buildKey(aimAt),
     };
     this.prev.x = me.x;
     this.prev.y = me.y;
@@ -234,7 +238,7 @@ export class ClientGame {
     for (const a of out) this.localAction(a, inp.s);
     this.pending.push(inp);
     if (this.pending.length > 240) this.pending.shift();
-    this.net.send({ t: 'i', l: [[inp.s, inp.b, inp.a, inp.w, inp.v]] });
+    this.net.send({ t: 'i', l: [[inp.s, inp.b, inp.a, inp.w, inp.v, inp.k]] });
 
     this.err.x *= Math.exp(-12 * DT);
     this.err.y *= Math.exp(-12 * DT);
@@ -260,8 +264,9 @@ export class ClientGame {
     let tx;
     let ty;
     if (alive) {
-      tx = x - 800 + (this.input.mx * 2 - 800) * 0.3;
-      ty = y - PHYS.HEIGHT / 2 - 450 + (this.input.my * 2 - 450) * 0.25;
+      const scope = this.wantW === W.sniper ? 2 : 1; // the sniper scope drags the view towards the cursor
+      tx = x - 800 + (this.input.mx * 2 - 800) * 0.3 * scope;
+      ty = y - PHYS.HEIGHT / 2 - 450 + (this.input.my * 2 - 450) * 0.25 * scope;
     } else if (this.cam) {
       tx = this.cam.x;
       ty = this.cam.y;
@@ -322,6 +327,8 @@ export class ClientGame {
       if (Math.abs(r.x / 2 - cx - 400) < 460 && Math.abs(r.y / 2 - cy - 225) < 290) this.drawPlayer(ctx, s, r, r.x, r.y, r.aim, dt);
     }
     if (meOn) this.drawPlayer(ctx, this.slot, me, mx, my, this.aim, dt);
+    if (meOn && this.wantW === W.builder) this.drawBuildPreview(ctx, me.x, me.y);
+    this.drawLasers(ctx, others, meOn ? { x: mx, y: my } : null);
 
     this.fx.drawFront(ctx);
 
@@ -358,8 +365,9 @@ export class ClientGame {
       nades: me.nades, dead: me.dead, respawnT: me.respawnT, rtt: this.rtt, armory: this.armory,
       destruction: sim ? sim.destruction : 0, pool: this.pool,
       locked: poolList(this.pool).filter((w) => !owns(me.owned, w)).length,
+      build: this.wantW === W.builder ? this.buildHud() : null,
     };
   }
 }
 
-Object.assign(ClientGame.prototype, shots, events, interp);
+Object.assign(ClientGame.prototype, shots, events, interp, builder);

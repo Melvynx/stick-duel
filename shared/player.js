@@ -1,5 +1,5 @@
 import { BTN, CELL, DT, PHYS, RULES } from './constants.js';
-import { CONTINUOUS, GRENADE, START_OWNED, WEAPONS, fullAmmo, owns } from './weapons.js';
+import { CONTINUOUS, FLAME, GRENADE, MELEE, START_OWNED, WEAPONS, fullAmmo, owns } from './weapons.js';
 
 // Player physics shared by the authoritative server and client-side prediction.
 // Must stay deterministic: same state + input + terrain => same result.
@@ -48,6 +48,7 @@ export function createPlayer(slot) {
     stamDelay: 0,
     sprinting: false,
     owned: START_OWNED,
+    mcd: 0,
   };
 }
 
@@ -92,10 +93,13 @@ function checkGround(p, t, dropping) {
   return !dropping && onPlatformTop(p, t);
 }
 
+// Returns the direction the player was stopped in (0 when the whole move went through).
+// Lips up to STEP_UP px (AIR_STEP mid-air) are climbed instead of stopping the run.
 function moveX(p, dx, t, grounded, ns) {
   const hw = PHYS.HALF_W;
   const h = PHYS.HEIGHT;
   const sg = Math.sign(dx);
+  const lift = grounded ? PHYS.STEP_UP : PHYS.AIR_STEP;
   let rem = Math.abs(dx);
   while (rem > 1e-9) {
     const s = rem > 1 ? 1 : rem;
@@ -104,23 +108,40 @@ function moveX(p, dx, t, grounded, ns) {
       p.x = nx;
     } else {
       let stepped = false;
-      if (grounded) {
-        for (let up = 1; up <= PHYS.STEP_UP; up++) {
-          if (!t.rectSolid(nx - hw, p.y - up - h, nx + hw, p.y - up, ns)) {
-            p.x = nx;
-            p.y -= up;
-            stepped = true;
-            break;
-          }
+      for (let up = 1; up <= lift; up++) {
+        if (!t.rectSolid(nx - hw, p.y - up - h, nx + hw, p.y - up, ns)) {
+          p.x = nx;
+          p.y -= up;
+          stepped = true;
+          break;
         }
       }
       if (!stepped) {
         p.vx = 0;
-        return;
+        return sg;
       }
     }
     rem -= s;
   }
+  return 0;
+}
+
+// Rising into a ceiling corner: slides up to CORNER px sideways (towards the motion first)
+// so a stray pixel over the head never kills a jump. True when it found a way through.
+function slideCorner(p, ny, t, ns) {
+  const hw = PHYS.HALF_W;
+  const h = PHYS.HEIGHT;
+  const first = p.vx < 0 ? -1 : 1;
+  for (let k = 1; k <= PHYS.CORNER; k++) {
+    for (const sg of [first, -first]) {
+      const x = p.x + sg * k;
+      if (!t.rectSolid(x - hw, ny - h, x + hw, ny, ns) && !t.rectSolid(x - hw, p.y - h, x + hw, p.y, ns)) {
+        p.x = x;
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // Returns 1 when landing, -1 on a ceiling bump, 0 otherwise.
@@ -152,7 +173,7 @@ function moveY(p, dy, t, dropping, ns) {
     while (rem > 1e-9) {
       const s = rem > 1 ? 1 : rem;
       const ny = p.y - s;
-      if (t.rectSolid(p.x - hw, ny - h, p.x + hw, ny, ns)) {
+      if (t.rectSolid(p.x - hw, ny - h, p.x + hw, ny, ns) && !slideCorner(p, ny, t, ns)) {
         const rTop = Math.floor((ny - h) / CELL);
         p.y = Math.min(p.y, (rTop + 1) * CELL + h);
         return -1;
@@ -184,7 +205,8 @@ function unstick(p, t) {
   return 2;
 }
 
-// Advances one tick. `out` (optional) collects actions: fire, nade, jump, flip, land, switch, jet.
+// Advances one tick. `out` (optional) collects actions: fire, nade, jump, flip, land, switch, jet,
+// melee (shove that breaks terrain) and bump (pushed into something that stopped the player).
 export function stepPlayer(p, inp, t, out, opts) {
   const dt = DT;
   const b = inp.b | 0;
@@ -203,6 +225,7 @@ export function stepPlayer(p, inp, t, out, opts) {
 
   p.cd -= dt;
   p.gcd = Math.max(0, p.gcd - dt);
+  p.mcd = Math.max(0, (p.mcd || 0) - dt);
   p.shield = Math.max(0, p.shield - dt);
   if (p.flipT >= 0) {
     p.flipT += dt;
@@ -352,6 +375,16 @@ export function stepPlayer(p, inp, t, out, opts) {
       }
       if (out) out.push({ k: 'fire', w: p.w, a: p.aim, x: ox, y: oy, vx: p.vx, vy: p.vy });
     }
+    // Flamer jet: the stream pushes back, so aiming down turns it into a slow hover.
+    if (p.flaming && W.kind === 'flame') {
+      p.vx -= Math.cos(p.aim) * FLAME.thrust * dt;
+      p.vy -= Math.sin(p.aim) * FLAME.thrust * dt;
+      if (p.vy < -60) p.grounded = false;
+    }
+    if (pressed & BTN.MELEE && p.mcd <= 0) {
+      p.mcd = MELEE.cd;
+      if (out) out.push({ k: 'melee', a: p.aim });
+    }
     if (pressed & BTN.ALT && W.kind === 'c4') {
       if (out) out.push({ k: 'det' });
     } else if (pressed & BTN.ALT && p.gcd <= 0 && p.nades > 0) {
@@ -371,8 +404,10 @@ export function stepPlayer(p, inp, t, out, opts) {
   const wasGrounded = p.grounded;
   if (stuck !== 2) {
     if (ns) p.vx *= 0.9;
-    moveX(p, p.vx * dt, t, wasGrounded, ns);
+    const blocked = moveX(p, p.vx * dt, t, wasGrounded, ns);
+    if (blocked && blocked === dir && out) out.push({ k: 'bump', d: blocked });
     const hitY = moveY(p, p.vy * dt, t, dropping, ns && p.vy < 0);
+    if (hitY === -1 && p.vy < -200 && out) out.push({ k: 'bump', d: 0 });
     if (hitY === 1) {
       if (out && p.vy > 320) out.push({ k: 'land', v: p.vy });
       p.vy = 0;

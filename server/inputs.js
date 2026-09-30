@@ -14,25 +14,26 @@ export function send(client, msg) {
 export function resetInputs(client, slot, aim = 0) {
   client.slot = slot;
   client.queue = [];
-  client.last = { s: 0, b: 0, a: aim, w: 0, v: 0 };
+  client.last = { s: 0, b: 0, a: aim, w: 0, v: 0, k: 0 };
   client.lastSeq = 0;
   client.ack = 0;
   client.starve = 0;
 }
 
-// Validates and queues inputs `[s, b, a, w, v]` from a client.
+// Validates and queues inputs `[s, b, a, w, v, k?]` from a client (`k`: builder choice, 0-4095).
 export function queueInputs(client, list) {
   if (!Array.isArray(list)) return;
   for (const it of list.slice(0, 30)) {
     if (!Array.isArray(it) || it.length < 5) continue;
     const [s, b, a, w, v] = it;
+    const k = Number.isInteger(it[5]) && it[5] >= 0 && it[5] < 4096 ? it[5] : 0;
     if (!Number.isInteger(s) || s <= client.lastSeq) continue;
     if (!Number.isInteger(b) || b < 0 || b > BTN_MASK) continue;
     if (typeof a !== 'number' || !Number.isFinite(a) || Math.abs(a) > 10) continue;
     if (!Number.isInteger(w) || w < 0 || w >= WEAPONS.length) continue;
     if (!Number.isInteger(v)) continue;
     client.lastSeq = s;
-    client.queue.push({ s, b, a, w, v });
+    client.queue.push({ s, b, a, w, v, k });
   }
   if (client.queue.length > MAX_QUEUE) client.queue.splice(0, client.queue.length - MAX_QUEUE);
 }
@@ -45,7 +46,7 @@ export function processInputs(clients, apply) {
     if (q.length === 0) {
       c.starve++;
       const last = c.last;
-      apply(c.slot, { s: last.s, b: c.starve > STARVE_CLEAR ? 0 : last.b, a: last.a, w: last.w, v: last.v + c.starve });
+      apply(c.slot, { s: last.s, b: c.starve > STARVE_CLEAR ? 0 : last.b, a: last.a, w: last.w, v: last.v + c.starve, k: last.k });
       continue;
     }
     c.starve = 0;

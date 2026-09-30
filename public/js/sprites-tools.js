@@ -86,6 +86,40 @@ export const TOOL_GUNS = [
     [12, 6],
     [23, 3],
   ),
+  // 12 sniper: long barrel, scope with a blue lens, wooden stock.
+  gun(
+    [
+      '.......kkkkkkkkk..............',
+      '......kbmmmmmmmck.............',
+      '.......kkkdkkkkk..............',
+      'kkkk.kkkkkkkkkkkkkkkkkkkkkkkk.',
+      'kNNNkkmmmmmmmmmmllllllllllllkk',
+      'knNNNmmmmmmmmmmmdddddddddddddk',
+      'kNNNNkkkdkkkkkkkkkkkkkkkkkkkk.',
+      '.kkkk..kdk....................',
+      '.......kkk....................',
+    ],
+    [8, 6],
+    [14, 5],
+    [29, 4.5],
+  ),
+  // 13 M4: carry handle, magazine, collapsible stock.
+  gun(
+    [
+      '........kkkkkk........',
+      '.......kk.kk.kk.......',
+      'kkk.kkkkkkkkkkkkkkkk..',
+      'kmmkkmmmmmmmmmllllllkk',
+      'kmmmmmmmmmmmmmmdddddmk',
+      'kkkkkkkdkkmmkkkkkkkkk.',
+      '......kdk.kmmk........',
+      '......kkk.kmmk........',
+      '...........kk.........',
+    ],
+    [7, 6],
+    [14, 4],
+    [21, 3.5],
+  ),
 ];
 
 export const C4_CHARGE = make(['.kkkkk.', 'knNNNnk', 'kWkWkWk', 'knnnnnk', '.kkkkk.']);

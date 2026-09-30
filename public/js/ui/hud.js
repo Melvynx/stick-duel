@@ -1,3 +1,4 @@
+import { MODE_NAMES } from '/shared/build.js';
 import { CONTINUOUS, FULL_POOL, KILL_NAMES, W, WEAPONS, owns, poolBar } from '/shared/weapons.js';
 import { GUNS, NADE_ICON } from '../sprites.js';
 import { LOCK } from '../sprites-tools.js';
@@ -156,6 +157,29 @@ export function createHud({ game, sfx, showYou }) {
     setTimeout(() => row.remove(), 4600);
   }
 
+  // ---------- builder choice ----------
+
+  const buildbar = $('#buildbar');
+  const chips = MODE_NAMES.map((name) => {
+    const c = document.createElement('span');
+    c.className = 'chip';
+    c.textContent = name;
+    $('#bb-modes').appendChild(c);
+    return c;
+  });
+  let lastBuild = '';
+
+  function updateBuild(b) {
+    buildbar.classList.toggle('hidden', !b || game.me.dead);
+    if (!b) return;
+    const key = `${b.mode}|${b.style}|${b.color}`;
+    if (key === lastBuild) return;
+    lastBuild = key;
+    chips.forEach((c, i) => c.classList.toggle('on', MODE_NAMES[i] === b.mode));
+    setText($('#bb-style'), b.style);
+    $('#bb-swatch').style.background = b.color;
+  }
+
   // ---------- per frame ----------
 
   const stam = $('.bar.stam');
@@ -165,6 +189,7 @@ export function createHud({ game, sfx, showYou }) {
 
   function update(h, dt) {
     updateHotbar(h);
+    updateBuild(h.build);
     if (tipTimer > 0) {
       tipTimer -= dt;
       if (tipTimer <= 0) tip.classList.add('hidden');

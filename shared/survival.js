@@ -38,7 +38,7 @@ export const ENEMIES = {
   brute: { name: 'BRUTE', w: 2, color: '#ffd23f', take: 0.85, deal: 0.3, range: [30, 150], gap: [1.0, 1.5], acc: 1.2, pts: 150, hop: 0.5, reach: 260 },
   rocketeer: { name: 'ROCKETEER', w: 3, color: '#b4ff5a', take: 1.4, deal: 0.3, range: [320, 620], gap: [2.0, 2.8], acc: 0.8, pts: 200, hop: 0.15 },
   flamer: { name: 'FLAMER', w: 5, color: '#3ee6c4', take: 1.1, deal: 0.3, range: [20, 120], gap: [0, 0], acc: 1.4, pts: 200, hop: 0.6, reach: 200 },
-  sniper: { name: 'SNIPER', w: 4, color: '#c77dff', take: 1.9, deal: 0.28, range: [520, 950], gap: [3.0, 4.0], acc: 0.5, pts: 250, hop: 0, steady: 0.8, reach: 1400 },
+  sniper: { name: 'SNIPER', w: 12, color: '#c77dff', take: 1.9, deal: 0.28, range: [520, 950], gap: [3.0, 4.0], acc: 0.5, pts: 250, hop: 0, steady: 0.8, reach: 1400 },
   boss: { name: 'WARLORD', w: 6, alt: 1, color: '#ff3b5c', take: 0.25, deal: 0.32, range: [220, 480], gap: [2.2, 3.0], acc: 0.9, pts: 1500, hop: 0.2 },
 };
 

@@ -30,8 +30,8 @@ export const MAT_PLANK = 12;
 export const MAT_ANCHOR = 13;
 export const MAT_BUILD = 14; // builder pieces: static, never fall, never crumble
 
-export const BTN = { LEFT: 1, RIGHT: 2, JUMP: 4, DOWN: 8, FIRE: 16, ALT: 32, SPRINT: 64 };
-export const BTN_MASK = 127;
+export const BTN = { LEFT: 1, RIGHT: 2, JUMP: 4, DOWN: 8, FIRE: 16, ALT: 32, SPRINT: 64, MELEE: 128 };
+export const BTN_MASK = 255;
 
 export const PHYS = {
   RUN: 275,
@@ -67,7 +67,9 @@ export const PHYS = {
   JET_K_OFF: 7,
   HALF_W: 6,
   HEIGHT: 58,
-  STEP_UP: 7,
+  STEP_UP: 10,
+  AIR_STEP: 6, // lips climbed mid-air
+  CORNER: 6, // ceiling corners slid around while rising
   STEP_DOWN: 9,
   DROP_T: 0.22,
   AIM_Y: 40,
@@ -81,6 +83,7 @@ export const HITBOX = { HW: 8, H: 58 };
 export const RULES = {
   HP: 100,
   WORLD_DAMAGE: 0.5, // TNT chains and burning terrain hit at half strength and never finish anyone
+  WORLD_FLOOR: 35, // ...nor take anyone below this
   RESPAWN: 1.5,
   SHIELD: 1,
   FUEL: 100,

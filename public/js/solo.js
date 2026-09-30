@@ -49,7 +49,7 @@ export class SoloServer {
   // Same interface as Net: the ClientGame sends its inputs here.
   send(msg) {
     if (!this.active || msg.t !== 'i') return;
-    for (const [s, b, a, w, v] of msg.l) this.queue.push({ s, b, a, w, v });
+    for (const [s, b, a, w, v, k = 0] of msg.l) this.queue.push({ s, b, a, w, v, k });
   }
 
   // One simulation tick, run right after ClientGame.tick() queued the player's input.

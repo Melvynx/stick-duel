@@ -26,7 +26,7 @@ export const WEAPONS = [
     push: 260, kick: 9, shake: 0.55, ammo: 5, hold: 14, muzzle: 54,
   },
   {
-    id: 'flame', name: 'FLAMER', kind: 'flame', auto: true, cd: 0, speed: 560, spread: 0.1, dps: 72,
+    id: 'flame', name: 'FLAMER', kind: 'flame', auto: true, cd: 0, speed: 560, spread: 0.1, dps: 42,
     push: 0, kick: 1, shake: 0.03, ammo: 300, hold: 14, muzzle: 50,
   },
   {
@@ -53,6 +53,15 @@ export const WEAPONS = [
     id: 'quake', name: 'QUAKE', kind: 'quake', auto: false, cd: 1.3, speed: 640,
     push: 160, kick: 8, shake: 0.4, ammo: 3, hold: 12, muzzle: 48,
   },
+  // One-shot headshots (`head` multiplies hits in the top of the box); the scope drags the camera.
+  {
+    id: 'sniper', name: 'SNIPER', kind: 'bullet', auto: false, cd: 1.05, speed: 5200, spread: 0,
+    pellets: 1, dmg: 70, head: 1.5, carve: 6, push: 70, kick: 9, shake: 0.4, ammo: 10, hold: 16, muzzle: 64, casing: true,
+  },
+  {
+    id: 'rifle', name: 'M4', kind: 'bullet', auto: true, cd: 0.1, speed: 2600, spread: 0.028,
+    pellets: 1, dmg: 14, carve: 5, push: 8, kick: 3, shake: 0.09, ammo: 150, hold: 15, muzzle: 50, casing: true,
+  },
 ];
 
 export const W = Object.fromEntries(WEAPONS.map((w, i) => [w.id, i]));
@@ -65,9 +74,9 @@ export const TNT_W = NADE_W + 3;
 export const KILL_NAMES = [...WEAPONS.map((w) => w.name), 'GRENADE', 'DEBRIS', 'FIRE', 'TNT'];
 
 // Hotbar and unlock order of every weapon a player can get. The pistol is always owned.
-// SANDSTORM and QUAKE are retired: they keep their `WEAPONS` index (wire format) but are never
-// selectable, granted or shown.
-export const UNLOCKS = ['pistol', 'smg', 'shotgun', 'builder', 'cutter', 'rocket', 'flame', 'rail', 'c4', 'toomuch']
+// SANDSTORM, QUAKE and CUTTER are retired: they keep their `WEAPONS` index (wire format) but are
+// never selectable, granted or shown.
+export const UNLOCKS = ['pistol', 'smg', 'shotgun', 'builder', 'rifle', 'sniper', 'rocket', 'flame', 'rail', 'c4', 'toomuch']
   .map((id) => W[id]);
 export const SELECTABLE = UNLOCKS;
 export const START_OWNED = 1 << W.pistol;
@@ -77,7 +86,7 @@ const maskOf = (ids) => ids.reduce((m, id) => m | (1 << W[id]), 0);
 // Weapon pools ("allowed weapons"): a bitmask of SELECTABLE weapons. 1v1 players own the whole pool
 // from the start; survival starts with the first 4 of it and unlocks the rest wave by wave.
 export const FULL_POOL = UNLOCKS.reduce((m, w) => m | (1 << w), 0);
-export const BASIC_POOL = maskOf(['pistol', 'smg', 'shotgun', 'rocket', 'rail', 'builder']);
+export const BASIC_POOL = maskOf(['pistol', 'smg', 'shotgun', 'rifle', 'sniper', 'rocket', 'rail', 'builder']);
 export const POOLS = {
   all: { name: 'ALL WEAPONS', mask: FULL_POOL },
   basic: { name: 'BASIC', mask: BASIC_POOL },
@@ -118,11 +127,16 @@ export const BOOMS = {
   tnt: { r: 50, dmg: 100, power: 1.2, w: TNT_W, fire: 1 },
 };
 
-export const FLAME = { range: 180, carveEvery: 6, carveR: 5, igniteEvery: 4, hitEvery: 6 };
+// The flamer melts terrain fast, shoves what it hits and pushes its user back (`thrust`, px/s²):
+// aimed down it becomes a hover. It lights terrain rarely so maps do not turn into a fire pit.
+export const FLAME = { range: 210, carveEvery: 3, carveR: 7, igniteEvery: 14, hitEvery: 6, thrust: 1500, push: 170 };
+// F: a shove that breaks the terrain in front of the player (never bedrock) and knocks enemies back.
+export const MELEE = { cd: 0.28, reach: 16, r: 16, dmg: 20, hitR: 30, push: 460 };
 export const RAIL = { range: 2400, maxPen: 150, carve: 4 };
 export const BEAM = { range: 300, carveEvery: 2, carveR: 4, hitEvery: 6 };
 // Builder pieces (see shared/build.js): `block` side in cells, sizes in blocks, `reach`/`air` in px.
-export const BUILD = { reach: 150, air: 30, block: 6, wallH: 8, ramp: 5, floor: 5, bunkerCost: 3 };
+// `cursor`: farthest a cursor piece (block, slab, pillar) lands from the shoulder.
+export const BUILD = { reach: 150, air: 30, block: 6, wallH: 8, ramp: 5, floor: 5, bunkerCost: 3, cursor: 240 };
 export const SPRAY = { reach: 120, every: 2, size: 3 };
 export const C4 = { max: 4, stick: 1 };
 

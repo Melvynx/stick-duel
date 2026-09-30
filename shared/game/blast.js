@@ -2,7 +2,7 @@ import { DT, PHYS, RULES } from '../constants.js';
 import { boxDist, playerBox, segAabb } from '../geom.js';
 import { BOMBLET, GONE, HIT_WALL, MIRV, PROJ, QUAKE, ROCKET, TIMER, mirvBomblets, stepProj } from '../projectiles.js';
 import { CRUMBLE_F, IGNITE_F, OP } from '../sim.js';
-import { BOOMS, GRENADE } from '../weapons.js';
+import { BOOMS, GRENADE, WEAPONS } from '../weapons.js';
 
 const BODY_MID = PHYS.HEIGHT / 2;
 const BULLET_LIFE = 1.2;
@@ -14,7 +14,7 @@ const BOOM_OF = { [PROJ.ROCKET]: 'rocket', [PROJ.MIRV]: 'mirv', [PROJ.BOMBLET]: 
 // Damage, deaths, explosions, bullets and projectile flight.
 export const blasts = {
   // `raw` marks world hazards (TNT chains, burning terrain): no shooter multipliers, half damage,
-  // and never lethal - only weapons can finish a player.
+  // and never below RULES.WORLD_FLOOR - only weapons can finish a player.
   damage(v, amount, by, w, kx, ky, hx, hy, raw) {
     const p = this.players[v];
     if (!this.present[v] || p.dead) return;
@@ -24,7 +24,7 @@ export const blasts = {
     }
     let dmg = raw ? amount * RULES.WORLD_DAMAGE : by === v ? amount * RULES.SELF_DAMAGE : amount * (this.dealMul[by] ?? 1);
     dmg *= this.takeMul[v];
-    p.hp = Math.max(raw ? Math.min(p.hp, 1) : 0, p.hp - dmg);
+    p.hp = Math.max(raw ? Math.min(p.hp, RULES.WORLD_FLOOR) : 0, p.hp - dmg);
     p.vx += kx;
     p.vy += ky;
     if (ky < -60) p.grounded = false;
@@ -111,7 +111,12 @@ export const blasts = {
       const hitD = hit ? hit.f * len : -1;
       if (hit && (wallD < 0 || hitD <= wallD)) {
         const kb = b.dmg * 5;
-        this.damage(hit.s, b.dmg, b.o, b.w, ux * kb, uy * kb - kb * 0.15, b.x + ux * hitD, b.y + uy * hitD);
+        const hx = b.x + ux * hitD;
+        const hy = b.y + uy * hitD;
+        const headMul = WEAPONS[b.w].head;
+        const head = headMul && hy < this.rewound(hit.s, b.lag).y - PHYS.HEIGHT + 17;
+        if (head) this.emit({ e: 'hs', s: hit.s, by: b.o, x: r1(hx), y: r1(hy) });
+        this.damage(hit.s, head ? b.dmg * headMul : b.dmg, b.o, b.w, ux * kb, uy * kb - kb * 0.15, hx, hy);
         continue;
       }
       if (wallD >= 0) {

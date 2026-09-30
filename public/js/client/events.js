@@ -85,6 +85,17 @@ export const events = {
       case 'det':
         if (ev.s !== mine) sfx.play('det', this.playerAt(ev.s)?.x);
         break;
+      case 'mel':
+        if (ev.s !== mine) this.meleeFx(ev.x, ev.y, ev.a, true);
+        break;
+      case 'hs':
+        fx.text(ev.x, ev.y - 34, 'HEADSHOT', '#ff5a5a', 1.4, 1.1);
+        fx.ring(ev.x, ev.y, 4, 34, '#ff5a5a', 0.3);
+        if (ev.by === mine) {
+          sfx.play('headshot');
+          fx.shake(0.25);
+        }
+        break;
       case 'bl':
         fx.puff(ev.x, ev.y, ev.w || 12, this.color(ev.s), ev.h || 12);
         sfx.play('place', ev.x);
@@ -152,6 +163,17 @@ export const events = {
       }
     }
     return out;
+  },
+
+  // F shove: the punch lands at (x, y) (world px at the fist); `remote` = already carved.
+  meleeFx(x, y, a, remote = false) {
+    const hx = remote ? x : x + Math.cos(a) * 16;
+    const hy = remote ? y : y + Math.sin(a) * 26;
+    const colors = this.colorsNear(hx, hy);
+    if (colors.length) this.fx.debris(hx, hy, colors, 14);
+    this.fx.ring(hx, hy, 4, 26, '#ffffff', 0.16);
+    this.sfx.play('punch', hx);
+    if (!remote) this.fx.shake(0.12);
   },
 
   dust(x, y) {

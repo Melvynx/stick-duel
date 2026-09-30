@@ -1,12 +1,14 @@
-import { bodyCells, freeCells, partHits, planPiece } from '../build.js';
+import { bodyCells, freeCells, partHits, planPiece, unpackBuild } from '../build.js';
 import { CELL, DT, MAT_BUILD, MAT_SAND, PHYS } from '../constants.js';
+import { COLLIDE, HARD } from '../materials.js';
 import { playerBox, railTrace, segAabb } from '../geom.js';
 import { PROJ, ROCKET } from '../projectiles.js';
 import { OP } from '../sim.js';
-import { BEAM, C4, FLAME, GRENADE, RAIL, SPRAY, WEAPONS, pelletDirs } from '../weapons.js';
+import { BEAM, C4, FLAME, GRENADE, MELEE, RAIL, SPRAY, WEAPONS, pelletDirs } from '../weapons.js';
 
 const BODY_MID = PHYS.HEIGHT / 2;
-const BUILD_COLORS = 3; // brick, steel, sandstone (palette BUILD order), one per player slot
+const BUILD_COLORS = 3; // TEAM style: brick, steel, sandstone (palette BUILD order), one per player slot
+const BRUSH_MAX = 40; // loose bits up to this many cells are brushed aside when they stop a player
 const r1 = (v) => Math.round(v * 10) / 10;
 
 // Extra lateral tolerance so the flame cone also catches the head and feet of the target.
@@ -14,7 +16,8 @@ const flameSlack = (along) => (along < 30 ? 10 : 6);
 
 // Weapons: discrete shots, thrown charges and the continuous tools (flamer, cutter, sandstorm).
 export const combat = {
-  fire(slot, a, seq, lag) {
+  // `k`: the input's builder choice (mode, style, cursor distance; see build.js).
+  fire(slot, a, seq, lag, k = 0) {
     const W = WEAPONS[a.w];
     this.emit({ e: 'f', s: slot, w: a.w, a: Math.round(a.a * 1000) / 1000, sq: seq, x: r1(a.x), y: r1(a.y), k: this.tick });
     const dx = Math.cos(a.a);
@@ -37,7 +40,7 @@ export const combat = {
         this.launch(slot, a, W, seq, lag);
         break;
       case 'build':
-        this.build(slot, a.w, a.a);
+        this.build(slot, a.w, a.a, k);
         break;
       case 'c4':
         this.throwC4(slot, a, W, seq);
@@ -112,12 +115,13 @@ export const combat = {
     this.emit({ e: 'r', s: slot, x1: r1(x), y1: r1(y), x2: r1(tr.x2), y2: r1(tr.y2) });
   },
 
-  // Builder: one click raises a whole anchored piece (wall, ramp, floor or bunker, picked by the
-  // aim angle; see shared/build.js). Refunded when it would bury a player or nothing is free.
-  // Planned from where the builder stands now (after this tick's move) so it never buries them.
-  build(slot, w, ang) {
+  // Builder: one click raises a whole anchored piece (see shared/build.js for modes and styles).
+  // Refunded when it would bury a player or nothing is free. Planned from where the builder stands
+  // now (after this tick's move) so it never buries them.
+  build(slot, w, ang, k) {
     const p = this.players[slot];
-    const plan = planPiece(this.terrain, p.x, p.y, ang);
+    const { mode, style, dist } = unpackBuild(k);
+    const plan = planPiece(this.terrain, p.x, p.y, ang, mode, dist);
     const extra = plan.cost - 1;
     const refund = () => {
       if (p.ammo[w] >= 0) p.ammo[w]++;
@@ -131,13 +135,95 @@ export const combat = {
       if (plan.parts.some((part) => partHits(part, ...box))) return refund();
     }
     if (extra > 0 && p.ammo[w] > 0) p.ammo[w] -= extra;
-    const col = slot % BUILD_COLORS;
+    const col = style ? style - 1 : slot % BUILD_COLORS;
     for (const part of plan.parts) {
       if (part.ramp) this.op(slot, OP.RAMP, part.x, part.y, part.len, part.thick, part.rise, MAT_BUILD, col);
       else this.op(slot, OP.PLACE, part.x, part.y, part.w, part.h, MAT_BUILD, col);
     }
     const [x0, y0, x1, y1] = plan.box;
     this.emit({ e: 'bl', s: slot, k: plan.kind, x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 });
+  },
+
+  // F shove: breaks the terrain just in front of the chest (bedrock excepted) and knocks back
+  // enemies in reach, so nobody stays walled in by a bunker or a pile of rubble.
+  melee(slot, ang) {
+    const p = this.players[slot];
+    const dx = Math.cos(ang);
+    const dy = Math.sin(ang);
+    const hx = p.x + dx * MELEE.reach;
+    const hy = p.y - BODY_MID + dy * (MELEE.reach + 10);
+    this.op(slot, OP.CARVE, hx, hy, MELEE.r, 0);
+    for (const s of this.targets(slot)) {
+      const q = this.players[s];
+      if (q.dead || Math.hypot(q.x - hx, q.y - BODY_MID - hy) > MELEE.hitR + MELEE.r) continue;
+      this.damage(s, MELEE.dmg, slot, 0, dx * MELEE.push, dy * MELEE.push - 160, q.x, q.y - BODY_MID);
+    }
+    this.emit({ e: 'mel', s: slot, x: r1(hx), y: r1(hy), a: Math.round(ang * 100) / 100 });
+  },
+
+  // A player pushing into something (`d` = -1/1 sideways, 0 = head first) that is only a loose
+  // scrap - fewer than BRUSH_MAX connected cells, all breakable - brushes it aside.
+  brush(slot, d) {
+    const p = this.players[slot];
+    const t = this.terrain;
+    const hw = PHYS.HALF_W;
+    let x0;
+    let x1;
+    let y0;
+    let y1;
+    if (d) {
+      x0 = d > 0 ? p.x + hw : p.x - hw - 3;
+      x1 = x0 + 3;
+      y0 = p.y - PHYS.HEIGHT;
+      y1 = p.y - 1;
+    } else {
+      x0 = p.x - hw;
+      x1 = p.x + hw;
+      y0 = p.y - PHYS.HEIGHT - 3;
+      y1 = p.y - PHYS.HEIGHT;
+    }
+    const seen = new Set();
+    const stack = [];
+    for (let cy = Math.floor(y0 / CELL); cy <= Math.floor(y1 / CELL); cy++) {
+      for (let cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++) {
+        const m = t.cell(cx, cy);
+        if (!COLLIDE[m]) continue;
+        const i = cy * t.w + cx;
+        if (!seen.has(i)) {
+          seen.add(i);
+          stack.push(i);
+        }
+      }
+    }
+    if (!stack.length) return;
+    while (stack.length) {
+      const i = stack.pop();
+      if (!HARD[t.mat[i]]) return; // bedrock: never
+      const cx = i % t.w;
+      const cy = (i / t.w) | 0;
+      for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
+        if (!COLLIDE[t.cell(nx, ny)]) continue;
+        const j = ny * t.w + nx;
+        if (seen.has(j)) continue;
+        if (seen.size >= BRUSH_MAX) return; // part of something real
+        seen.add(j);
+        stack.push(j);
+      }
+    }
+    let ax0 = Infinity;
+    let ay0 = Infinity;
+    let ax1 = -Infinity;
+    let ay1 = -Infinity;
+    for (const i of seen) {
+      const cx = i % t.w;
+      const cy = (i / t.w) | 0;
+      ax0 = Math.min(ax0, cx);
+      ay0 = Math.min(ay0, cy);
+      ax1 = Math.max(ax1, cx + 1);
+      ay1 = Math.max(ay1, cy + 1);
+    }
+    const r = (Math.hypot(ax1 - ax0, ay1 - ay0) * CELL) / 2 + 2;
+    this.op(slot, OP.CARVE, ((ax0 + ax1) * CELL) / 2, ((ay0 + ay1) * CELL) / 2, r, 0);
   },
 
   // One tick of a held continuous tool.
@@ -208,9 +294,10 @@ export const combat = {
     const acc = this.flameAcc[slot];
     if (!acc.size) return;
     const dx = Math.cos(this.players[slot].aim);
+    const kind = WEAPONS[this.flameW[slot]].kind;
     for (const [s, amount] of acc) {
       const q = this.players[s];
-      if (amount > 0) this.damage(s, amount, slot, this.flameW[slot], dx * 40, -20, q.x, q.y - BODY_MID);
+      if (amount > 0) this.damage(s, amount, slot, this.flameW[slot], dx * (kind === 'flame' ? FLAME.push : 40), -20, q.x, q.y - BODY_MID);
     }
     acc.clear();
   },
