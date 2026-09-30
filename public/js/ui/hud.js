@@ -1,4 +1,3 @@
-import { MODE_NAMES } from '/shared/build.js';
 import { CONTINUOUS, FULL_POOL, KILL_NAMES, W, WEAPONS, owns, poolBar } from '/shared/weapons.js';
 import { GUNS, NADE_ICON } from '../sprites.js';
 import { LOCK } from '../sprites-tools.js';
@@ -160,24 +159,18 @@ export function createHud({ game, sfx, showYou }) {
   // ---------- builder choice ----------
 
   const buildbar = $('#buildbar');
-  const chips = MODE_NAMES.map((name) => {
-    const c = document.createElement('span');
-    c.className = 'chip';
-    c.textContent = name;
-    $('#bb-modes').appendChild(c);
-    return c;
-  });
   let lastBuild = '';
 
   function updateBuild(b) {
     buildbar.classList.toggle('hidden', !b || game.me.dead);
     if (!b) return;
-    const key = `${b.mode}|${b.style}|${b.color}`;
+    const key = `${b.piece}|${b.style}|${b.color}`;
     if (key === lastBuild) return;
     lastBuild = key;
-    chips.forEach((c, i) => c.classList.toggle('on', MODE_NAMES[i] === b.mode));
+    setText($('#bb-piece'), b.piece);
     setText($('#bb-style'), b.style);
     $('#bb-swatch').style.background = b.color;
+    $('#bb-swatch').style.color = b.color;
   }
 
   // ---------- per frame ----------

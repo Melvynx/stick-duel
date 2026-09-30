@@ -66,7 +66,7 @@ test('terrain ops replay to the same world on a fresh client sim', () => {
   // Walls and floors, both ways, near and far, from two spots (refunded shots add no op).
   const aims = [-0.3, Math.PI + 0.3, -Math.PI / 4, (-3 * Math.PI) / 4, -Math.PI / 2, Math.PI / 2];
   let s = 0;
-  for (const x of [140, 300]) {
+  for (const x of [140, 300, 460, 620, 780]) {
     p.x = x;
     p.vx = 0;
     for (let i = 0; i < 20; i++) {

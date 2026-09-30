@@ -10,7 +10,7 @@ import { BUILD, W } from '../shared/weapons.js';
 const T = BUILD.tile * BUILD.block;
 const TH = BUILD.thick;
 const GROUND = 400; // top ground row of the flat map
-const FLOOR = (dist) => packBuild(PIECE.FLOOR, 0, dist);
+const FLOOR = (dist) => packBuild(PIECE.AUTO, 0, dist); // aimed straight up: a floor
 
 function builderGame() {
   const g = new Game('flat', 99, 2);
@@ -75,6 +75,20 @@ test('a wall stands on the ground on a grid line, one tile tall, and stays put',
   assert.ok(a.h * 2 > 58, 'taller than a player');
   settle(ctx);
   assert.deepEqual(built(g).cells, a.cells, 'the wall did not move');
+});
+
+test('the piece is automatic: aim sideways for a wall, up or down for a floor', () => {
+  const { g, p } = builderGame();
+  for (const a of [0, Math.PI, -0.6, 0.6, Math.PI + 0.6]) assert.equal(planPiece(g.terrain, p.x, p.y, a, PIECE.AUTO, 120).kind, PIECE.WALL);
+  for (const a of [-Math.PI / 2, -1.1, Math.PI / 2, -Math.PI + 1.1]) assert.equal(planPiece(g.terrain, p.x, p.y, a, PIECE.AUTO, 120).kind, PIECE.FLOOR);
+});
+
+test('aiming straight up at full reach builds the floor just above the head, not storeys up', () => {
+  const { g, p } = builderGame();
+  const part = planPiece(g.terrain, p.x, p.y, -Math.PI / 2, PIECE.AUTO, 999).parts[0];
+  assert.equal(part.y, GROUND - T);
+  const wall = planPiece(g.terrain, p.x, p.y, -0.7, PIECE.AUTO, 999).parts[0];
+  assert.ok(wall.y + wall.h >= GROUND - T, 'walls stay within one storey too');
 });
 
 test('holding fire at the same spot does not waste ammo', () => {

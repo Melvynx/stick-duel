@@ -58,9 +58,9 @@ export class Input {
       if (e.code === 'KeyQ' && !e.repeat) this.weaponReq = { last: true };
       if (e.code === 'KeyB' && !e.repeat) this.weaponReq = { builder: true };
       // Presses add up so several taps inside one tick are all applied.
-      if ((e.code === 'KeyR' || e.code === 'KeyT') && !e.repeat) {
-        const r = this.buildReq || (this.buildReq = { piece: 0, style: 0 });
-        r[e.code === 'KeyR' ? 'piece' : 'style'] += e.shiftKey ? -1 : 1;
+      if (e.code === 'KeyT' && !e.repeat) {
+        const r = this.buildReq || (this.buildReq = { style: 0 });
+        r.style += e.shiftKey ? -1 : 1;
       }
       if (MAP[e.code] !== undefined) {
         this.keys.add(e.code);

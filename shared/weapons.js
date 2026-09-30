@@ -136,7 +136,7 @@ export const RAIL = { range: 2400, maxPen: 150, carve: 4 };
 export const BEAM = { range: 300, carveEvery: 2, carveR: 4, hitEvery: 6 };
 // Builder pieces (see shared/build.js): `block` brick size and `thick` piece thickness in cells,
 // `tile` grid square in blocks (walls and floors are one tile long), `cursor` reach from the shoulder in px.
-export const BUILD = { block: 6, tile: 6, thick: 4, cursor: 240 };
+export const BUILD = { block: 6, tile: 6, thick: 4, cursor: 170 };
 export const SPRAY = { reach: 120, every: 2, size: 3 };
 export const C4 = { max: 4, stick: 1 };
 

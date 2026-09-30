@@ -1170,7 +1170,7 @@ input:focus {
   opacity: 0.6;
 }
 
-/* Builder choice: piece chips and the style swatch, shown while the builder is held. */
+/* Builder bar: the live piece (picked from the aim) and the style swatch, shown while the builder is held. */
 #buildbar {
   position: absolute;
   bottom: calc(var(--u) * 42);
@@ -1188,26 +1188,29 @@ input:focus {
 #buildbar .bb-row {
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 2);
-  background: rgba(0, 0, 0, 0.72);
-  padding: calc(var(--u) * 1.5) calc(var(--u) * 3);
+  gap: calc(var(--u) * 3);
+  background: rgba(10, 8, 20, 0.6);
+  backdrop-filter: blur(4px);
+  border: calc(var(--u) * 0.5) solid rgba(255, 255, 255, 0.12);
+  border-radius: calc(var(--u) * 3);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 4);
 }
 
-#buildbar .chip {
-  padding: 0 calc(var(--u) * 2);
-  color: rgba(255, 255, 255, 0.45);
-}
-
-#buildbar .chip.on {
-  background: var(--ink);
+#buildbar #bb-piece {
+  min-width: calc(var(--u) * 26);
+  text-align: center;
   color: #000;
+  background: var(--ink);
+  border-radius: calc(var(--u) * 1.5);
+  padding: 0 calc(var(--u) * 2);
 }
 
 #buildbar #bb-swatch {
   display: inline-block;
   width: calc(var(--u) * 6);
   height: calc(var(--u) * 6);
-  outline: calc(var(--u) * 1) solid #000;
+  border-radius: 50%;
+  box-shadow: 0 0 calc(var(--u) * 3) currentColor;
 }
 
 #buildbar .dim {
