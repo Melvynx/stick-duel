@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PIECE, planPiece } from '../shared/build.js';
-import { BTN, MAT_BUILD } from '../shared/constants.js';
+import { PIECE, packBuild, planPiece } from '../shared/build.js';
+import { BTN, MAT_BUILD, PHYS } from '../shared/constants.js';
 import { Game } from '../shared/game.js';
 import { buildMap } from '../shared/maps.js';
 import { TerrainSim } from '../shared/sim.js';
 import { BUILD, W } from '../shared/weapons.js';
 
-const B = BUILD.block;
+const T = BUILD.tile * BUILD.block;
+const TH = BUILD.thick;
+const GROUND = 400; // top ground row of the flat map
+const FLOOR = (dist) => packBuild(PIECE.FLOOR, 0, dist);
 
 function builderGame() {
   const g = new Game('flat', 99, 2);
@@ -18,8 +21,8 @@ function builderGame() {
   p.w = W.builder;
   p.ammo[W.builder] = 60;
   const seq = { n: 0 };
-  const input = (b, a) => {
-    g.applyInput(0, { s: ++seq.n, b, a, w: W.builder, v: g.tick });
+  const input = (b, a, k = 0) => {
+    g.applyInput(0, { s: ++seq.n, b, a, w: W.builder, v: g.tick, k });
     g.applyInput(1, { s: seq.n, b: 0, a: Math.PI, w: g.players[1].w, v: g.tick });
     g.update();
   };
@@ -28,9 +31,9 @@ function builderGame() {
 }
 
 // Fires one builder shot at `a`, then lets the cooldown run out.
-function shoot(ctx, a) {
-  ctx.input(BTN.FIRE, a);
-  for (let i = 0; i < 12; i++) ctx.input(0, a);
+function shoot(ctx, a, k = 0) {
+  ctx.input(BTN.FIRE, a, k);
+  for (let i = 0; i < 12; i++) ctx.input(0, a, k);
 }
 
 function built(g) {
@@ -57,28 +60,27 @@ const settle = (ctx, ticks = 180) => {
   for (let i = 0; i < ticks; i++) ctx.input(0, 0);
 };
 
-test('a flat shot raises a tall wall on the ground that stays put', () => {
+test('a wall stands on the ground on a grid line, one tile tall, and stays put', () => {
   const ctx = builderGame();
   const { g, p } = ctx;
   const ammo = p.ammo[W.builder];
   shoot(ctx, 0);
   const a = built(g);
   assert.equal(p.ammo[W.builder], ammo - 1);
-  assert.equal(a.w, B);
-  assert.ok(a.h >= BUILD.wallH * B - B, `wall height ${a.h}`);
-  assert.ok(a.h * 2 > 58 * 1.5, 'taller than 1.5 players');
+  assert.equal(a.w, TH);
+  assert.equal(a.h, T);
+  assert.equal((a.x0 + TH / 2) % T, 0, 'on a grid line');
   assert.ok(a.x0 * 2 > p.x, 'in front of the builder');
-  assert.equal(a.y1 + 1, 400, 'stands on the ground');
+  assert.equal(a.y1 + 1, GROUND, 'stands on the ground');
+  assert.ok(a.h * 2 > 58, 'taller than a player');
   settle(ctx);
-  const b = built(g);
-  assert.deepEqual(b.cells, a.cells, 'the wall did not move');
+  assert.deepEqual(built(g).cells, a.cells, 'the wall did not move');
 });
 
 test('holding fire at the same spot does not waste ammo', () => {
   const ctx = builderGame();
   const { g, p } = ctx;
   shoot(ctx, 0);
-  shoot(ctx, 0); // a second layer thickens the wall
   const n = built(g).cells.length;
   const ammo = p.ammo[W.builder];
   shoot(ctx, 0);
@@ -87,92 +89,57 @@ test('holding fire at the same spot does not waste ammo', () => {
   assert.equal(p.ammo[W.builder], ammo);
 });
 
-test('aiming straight up builds a floor above the head that does not fall', () => {
-  const ctx = builderGame();
-  const { g, p } = ctx;
-  shoot(ctx, -Math.PI / 2);
-  const a = built(g);
-  assert.equal(a.w, BUILD.floor * B);
-  assert.equal(a.h, B);
-  assert.ok(a.y1 * 2 < p.y - 58, 'above the head');
-  settle(ctx);
-  assert.deepEqual(built(g).cells, a.cells);
-});
-
-test('aiming down in the air builds a floor under the feet', () => {
-  const ctx = builderGame();
-  const { g, p } = ctx;
-  p.y -= 200;
-  const plan = planPiece(g.terrain, p.x, p.y, Math.PI / 2);
-  assert.equal(plan.kind, PIECE.FLOOR);
-  assert.ok(plan.parts[0].y * 2 >= p.y, 'below the feet');
-});
-
-test('a flat shot at the top edge of a wall stacks a new wall on it', () => {
-  const ctx = builderGame();
-  const { g, p } = ctx;
-  shoot(ctx, 0);
-  let wall = built(g);
-  // In the air, aiming just over the wall's top edge.
-  let plan = planPiece(g.terrain, p.x, wall.y0 * 2 + 36, 0);
-  assert.equal(plan.kind, PIECE.WALL);
-  assert.equal(plan.parts[0].x, wall.x0);
-  assert.equal(plan.parts[0].y + plan.parts[0].h, wall.y0, 'sits right on top of the first wall');
-  // Once the wall is two layers thick, aiming at its face near the top also stacks.
-  shoot(ctx, 0);
-  wall = built(g);
-  plan = planPiece(g.terrain, p.x, wall.y0 * 2 + 46, 0);
-  assert.equal(plan.parts[0].x, wall.x0);
-  assert.equal(plan.parts[0].y + plan.parts[0].h, wall.y0);
-  // Aimed at the middle of the wall there is nothing to build (refunded).
-  assert.equal(planPiece(g.terrain, p.x, p.y, 0).parts.length, 0);
-});
-
-test('a diagonal shot builds a ramp the builder can run up', () => {
-  const ctx = builderGame();
-  const { g, p } = ctx;
-  const y0 = p.y;
-  shoot(ctx, -Math.PI / 4);
-  const a = built(g);
-  assert.ok(a.w > BUILD.ramp * B - B && a.w <= BUILD.ramp * B, `ramp run ${a.w}`);
-  assert.ok(a.h >= BUILD.ramp * B - B, `ramp rises ${a.h}`);
-  let top = p.y;
-  for (let i = 0; i < 40; i++) {
-    ctx.input(BTN.RIGHT, 0);
-    top = Math.min(top, p.y);
+test('a wall never cuts through the builder', () => {
+  const { g, p } = builderGame();
+  for (let dx = -40; dx <= 40; dx += 4) {
+    const plan = planPiece(g.terrain, p.x + dx, p.y, 0, PIECE.WALL, 8);
+    const part = plan.parts[0];
+    assert.ok(part.x * 2 >= p.x + dx + 6 || (part.x + part.w) * 2 <= p.x + dx - 6, `clear of the body at ${dx}`);
   }
-  assert.ok(top < y0 - 40, `climbed from ${y0} to ${top}`);
-  settle(ctx);
-  assert.deepEqual(built(g).cells, a.cells);
 });
 
-test('aiming straight down on the ground boxes the builder in', () => {
+test('a floor aimed above the head lands one tile up, flush with the walls', () => {
   const ctx = builderGame();
   const { g, p } = ctx;
-  const ammo = p.ammo[W.builder];
-  shoot(ctx, Math.PI / 2);
+  shoot(ctx, 0);
+  const wall = built(g);
+  const cells = new Set(wall.cells);
+  shoot(ctx, -Math.PI / 2, FLOOR(40));
   const t = g.terrain;
-  const cx = Math.floor(p.x / 2);
-  const mid = Math.floor((p.y - 20) / 2);
-  const at = (x, y) => t.mat[y * t.w + x];
-  let left = cx;
-  while (left > cx - 30 && at(left, mid) !== MAT_BUILD) left--;
-  let right = cx;
-  while (right < cx + 30 && at(right, mid) !== MAT_BUILD) right++;
-  assert.equal(at(left, mid), MAT_BUILD, 'left wall');
-  assert.equal(at(right, mid), MAT_BUILD, 'right wall');
-  let roof = mid;
-  while (roof > mid - 60 && at(cx, roof) !== MAT_BUILD) roof--;
-  assert.equal(at(cx, roof), MAT_BUILD, 'roof');
-  assert.equal(p.ammo[W.builder], ammo - BUILD.bunkerCost);
-  assert.ok(!t.rectSolid(p.x - 6, p.y - 58, p.x + 6, p.y), 'builder not buried');
+  const floor = built(g).cells.filter((i) => !cells.has(i));
+  const ys = floor.map((i) => (i / t.w) | 0);
+  const xs = floor.map((i) => i % t.w);
+  assert.equal(Math.min(...ys), GROUND - T, 'top of the floor is one tile up');
+  assert.equal(Math.min(...ys), wall.y0, 'flush with the wall top');
+  assert.equal(Math.max(...ys) - Math.min(...ys) + 1, TH);
+  assert.equal(Math.min(...xs) % T, 0, 'on the grid');
+  assert.ok((GROUND - T + TH) * 2 <= GROUND * 2 - 58, 'a player fits under it');
+  settle(ctx);
+  assert.equal(built(g).cells.length, wall.cells.length + floor.length, 'the floor does not fall');
+});
+
+test('pieces stack storey by storey: a wall on a floor, a wall on a wall', () => {
+  const ctx = builderGame();
+  const { g, p } = ctx;
+  shoot(ctx, 0);
+  const wall = built(g);
+  // In the air, aiming just over the first wall: the next one sits on it.
+  const plan = planPiece(g.terrain, p.x, wall.y0 * 2 + PHYS.AIM_Y - 6, 0);
+  assert.equal(plan.parts[0].x, wall.x0);
+  assert.equal(plan.parts[0].y + plan.parts[0].h, wall.y0, 'on top of the first wall');
+  // Aimed at the bottom half of the wall there is nothing to build.
+  assert.equal(planPiece(g.terrain, p.x, p.y, 0).parts.length, 0);
+  // A wall aimed a storey up over flat ground lines up with the one below.
+  const up = planPiece(g.terrain, p.x, p.y, -0.35, PIECE.WALL, 240).parts[0];
+  assert.equal(Math.abs((up.y + up.h - GROUND) % T), 0, 'on a storey line');
 });
 
 test('pieces are refunded instead of burying another player', () => {
   const ctx = builderGame();
   const { g, p } = ctx;
   const q = g.players[1];
-  q.x = p.x + 30;
+  const part = planPiece(g.terrain, p.x, p.y, 0).parts[0];
+  q.x = (part.x + part.w / 2) * 2;
   q.y = p.y;
   const ammo = p.ammo[W.builder];
   shoot(ctx, 0);
@@ -185,8 +152,7 @@ test('walls are destructible and ops replay identically on a fresh sim', () => {
   const { g } = ctx;
   shoot(ctx, 0);
   const wall = built(g);
-  shoot(ctx, -Math.PI / 2);
-  shoot(ctx, Math.PI / 2);
+  shoot(ctx, -Math.PI / 2, FLOOR(40));
   const before = built(g);
   g.explode(wall.x0 * 2 + 6, wall.y0 + wall.y1, 'rocket', 1);
   settle(ctx, 30);

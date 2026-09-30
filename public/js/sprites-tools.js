@@ -103,22 +103,22 @@ export const TOOL_GUNS = [
     [14, 5],
     [29, 4.5],
   ),
-  // 13 M4: carry handle, magazine, collapsible stock.
+  // 13 AK-47: wooden stock and handguard, curved banana magazine, front sight post.
   gun(
     [
-      '........kkkkkk........',
-      '.......kk.kk.kk.......',
-      'kkk.kkkkkkkkkkkkkkkk..',
-      'kmmkkmmmmmmmmmllllllkk',
-      'kmmmmmmmmmmmmmmdddddmk',
-      'kkkkkkkdkkmmkkkkkkkkk.',
-      '......kdk.kmmk........',
-      '......kkk.kmmk........',
-      '...........kk.........',
+      '....................k...',
+      '...kkkkkkkkkkkkkkkkkkkk.',
+      'kkkkmmmmmmmmkkNNNNNkkkkk',
+      'kNNkmmmmmmmmmkNNNNNkmmmW',
+      'kNNNkkkkdkmmmkkkkkkkkkkk',
+      '.kNNNk.kdk.kmmk.........',
+      '..kkkk.kdk..kmmk........',
+      '.......kkk...kmmk.......',
+      '..............kkk.......',
     ],
-    [7, 6],
-    [14, 4],
-    [21, 3.5],
+    [8, 6],
+    [16, 3],
+    [23, 3.5],
   ),
 ];
 

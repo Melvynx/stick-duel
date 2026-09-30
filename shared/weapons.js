@@ -59,8 +59,8 @@ export const WEAPONS = [
     pellets: 1, dmg: 70, head: 1.5, carve: 6, push: 70, kick: 9, shake: 0.4, ammo: 10, hold: 16, muzzle: 64, casing: true,
   },
   {
-    id: 'rifle', name: 'M4', kind: 'bullet', auto: true, cd: 0.1, speed: 2600, spread: 0.028,
-    pellets: 1, dmg: 14, carve: 5, push: 8, kick: 3, shake: 0.09, ammo: 150, hold: 15, muzzle: 50, casing: true,
+    id: 'rifle', name: 'AK-47', kind: 'bullet', auto: true, cd: 0.088, speed: 2400, spread: 0.045,
+    pellets: 1, dmg: 15, carve: 6, push: 12, kick: 5, shake: 0.13, ammo: 180, hold: 30, muzzle: 56, casing: true,
   },
 ];
 
@@ -134,9 +134,9 @@ export const FLAME = { range: 210, carveEvery: 3, carveR: 7, igniteEvery: 14, hi
 export const MELEE = { cd: 0.28, reach: 16, r: 16, dmg: 20, hitR: 30, push: 460 };
 export const RAIL = { range: 2400, maxPen: 150, carve: 4 };
 export const BEAM = { range: 300, carveEvery: 2, carveR: 4, hitEvery: 6 };
-// Builder pieces (see shared/build.js): `block` side in cells, sizes in blocks, `reach`/`air` in px.
-// `cursor`: farthest a cursor piece (block, slab, pillar) lands from the shoulder.
-export const BUILD = { reach: 150, air: 30, block: 6, wallH: 8, ramp: 5, floor: 5, bunkerCost: 3, cursor: 240 };
+// Builder pieces (see shared/build.js): `block` brick size and `thick` piece thickness in cells,
+// `tile` grid square in blocks (walls and floors are one tile long), `cursor` reach from the shoulder in px.
+export const BUILD = { block: 6, tile: 6, thick: 4, cursor: 240 };
 export const SPRAY = { reach: 120, every: 2, size: 3 };
 export const C4 = { max: 4, stick: 1 };
 

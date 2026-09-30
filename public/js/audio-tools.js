@@ -33,10 +33,11 @@ export const EXTRA = {
     this.tone({ type: 'square', f0: 900, f1: 120, gain: 0.14 * s, decay: 0.08, pan });
     this.noise({ f0: 420, f1: 60, type: 'lowpass', gain: 0.4 * s, decay: 0.55, pan, delay: 0.02 });
   },
-  // 13 M4: tight rifle crack.
+  // 13 AK-47: heavy chatter, a low thump under a wide crack.
   shot13(pan, s) {
-    this.noise({ f0: 2600, f1: 900, q: 0.9, gain: 0.2 * s, decay: 0.05, pan });
-    this.tone({ type: 'square', f0: 420, f1: 160, gain: 0.07 * s, decay: 0.04, pan });
+    this.noise({ f0: 3200, f1: 700, q: 0.7, gain: 0.26 * s, decay: 0.07, pan });
+    this.noise({ f0: 700, f1: 160, type: 'lowpass', gain: 0.28 * s, decay: 0.09, pan });
+    this.tone({ type: 'square', f0: 260, f1: 70, gain: 0.1 * s, decay: 0.06, pan });
   },
   // F shove: a dull punch into the terrain.
   punch(pan, s) {

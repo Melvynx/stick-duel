@@ -122,24 +122,18 @@ export const combat = {
     const p = this.players[slot];
     const { mode, style, dist } = unpackBuild(k);
     const plan = planPiece(this.terrain, p.x, p.y, ang, mode, dist);
-    const extra = plan.cost - 1;
     const refund = () => {
       if (p.ammo[w] >= 0) p.ammo[w]++;
     };
-    if (extra > 0 && p.ammo[w] >= 0 && p.ammo[w] < extra) return refund();
-    if (!freeCells(this.terrain, plan.parts)) return refund();
+    if (!plan.parts.length || !freeCells(this.terrain, plan.parts)) return refund();
     for (let s = 0; s < this.n; s++) {
       const q = this.players[s];
       if (!this.present[s] || q.dead) continue;
       const box = bodyCells(q.x, q.y);
       if (plan.parts.some((part) => partHits(part, ...box))) return refund();
     }
-    if (extra > 0 && p.ammo[w] > 0) p.ammo[w] -= extra;
     const col = style ? style - 1 : slot % BUILD_COLORS;
-    for (const part of plan.parts) {
-      if (part.ramp) this.op(slot, OP.RAMP, part.x, part.y, part.len, part.thick, part.rise, MAT_BUILD, col);
-      else this.op(slot, OP.PLACE, part.x, part.y, part.w, part.h, MAT_BUILD, col);
-    }
+    for (const part of plan.parts) this.op(slot, OP.PLACE, part.x, part.y, part.w, part.h, MAT_BUILD, col);
     const [x0, y0, x1, y1] = plan.box;
     this.emit({ e: 'bl', s: slot, k: plan.kind, x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 });
   },

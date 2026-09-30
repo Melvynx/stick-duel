@@ -39,17 +39,18 @@ function fill(t, cx0, cy0, cx1, cy1, m) {
 }
 
 test('builder choice packs mode, style and cursor distance into one input field', () => {
-  const k = packBuild(PIECE.PILLAR + 1, 6, 150);
+  const k = packBuild(PIECE.FLOOR, 6, 150);
   assert.ok(k >= 0 && k < 4096);
-  assert.deepEqual(unpackBuild(k), { mode: PIECE.PILLAR + 1, style: 6, dist: 152 });
+  assert.deepEqual(unpackBuild(k), { mode: PIECE.FLOOR, style: 6, dist: 152 });
   assert.equal(unpackBuild(packBuild(0, 0, 9999)).dist, 252, 'distance saturates');
 });
 
-test('cursor pieces land where the cursor points: block, slab and pillar', () => {
-  for (const [kind, w, h] of [[PIECE.BLOCK, B, B], [PIECE.SLAB, 3 * B, B], [PIECE.PILLAR, B, 3 * B]]) {
+test('walls and floors snap to the build grid near the cursor', () => {
+  const T = BUILD.tile * B;
+  for (const [kind, w, h] of [[PIECE.WALL, BUILD.thick, T], [PIECE.FLOOR, T, BUILD.thick]]) {
     const { g, p, input } = duel(W.builder);
     p.ammo[W.builder] = 10;
-    input(BTN.FIRE, -0.3, packBuild(kind + 1, 5, 120));
+    input(BTN.FIRE, -0.3, packBuild(kind, 5, 160));
     let x0 = Infinity;
     let x1 = -1;
     let y0 = Infinity;
@@ -67,9 +68,9 @@ test('cursor pieces land where the cursor points: block, slab and pillar', () =>
     assert.equal(n, w * h, `piece ${kind} size`);
     assert.equal(x1 - x0 + 1, w);
     assert.equal(y1 - y0 + 1, h);
+    assert.equal((kind === PIECE.WALL ? x0 + BUILD.thick / 2 : x0) % T, 0, 'on the grid');
     const cx = (x0 + x1 + 1) / 2 * 2;
-    assert.ok(Math.abs(cx - (p.x + Math.cos(-0.3) * 120)) < B * 4, 'centred near the cursor');
-    assert.ok(y1 * 2 < p.y - PHYS.AIM_Y, 'up in the air where it was aimed');
+    assert.ok(Math.abs(cx - (p.x + Math.cos(-0.3) * 160)) <= T * 2, 'near the cursor');
   }
 });
 

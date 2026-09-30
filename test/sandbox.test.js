@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { packBuild } from '../shared/build.js';
 import { BTN, DT, MAT_BUILD, RULES } from '../shared/constants.js';
 import { Game } from '../shared/game.js';
 import { ITEM } from '../shared/game/items.js';
@@ -62,7 +63,7 @@ test('terrain ops replay to the same world on a fresh client sim', () => {
   g.grant(0, W.builder);
   g.grant(0, W.rocket);
   const p = g.players[0];
-  // Every piece type, both ways, from two spots (refunded shots add no op).
+  // Walls and floors, both ways, near and far, from two spots (refunded shots add no op).
   const aims = [-0.3, Math.PI + 0.3, -Math.PI / 4, (-3 * Math.PI) / 4, -Math.PI / 2, Math.PI / 2];
   let s = 0;
   for (const x of [140, 300]) {
@@ -74,7 +75,7 @@ test('terrain ops replay to the same world on a fresh client sim', () => {
       g.update();
     }
     for (let i = 0; i < 48; i++) {
-      g.applyInput(0, { s: ++s, b: BTN.FIRE, a: aims[(i >> 3) % aims.length], w: W.builder, v: g.tick });
+      g.applyInput(0, { s: ++s, b: BTN.FIRE, a: aims[(i >> 3) % aims.length], w: W.builder, v: g.tick, k: packBuild(i & 1, 0, 60 + (i % 5) * 40) });
       idle(g, 1);
       g.update();
     }

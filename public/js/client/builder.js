@@ -1,7 +1,6 @@
 import { PHYS } from '/shared/constants.js';
 import { MODE_NAMES, STYLE_NAMES, bodyCells, freeCells, packBuild, partHits, planPiece } from '/shared/build.js';
 import { BUILD as BUILD_PAL } from '/shared/palette.js';
-import { rampTop } from '/shared/sim.js';
 import { BUILD, W } from '/shared/weapons.js';
 
 const TEAM_COLORS = 3; // matches BUILD_COLORS on the server
@@ -23,7 +22,7 @@ export const builder = {
     return this.build;
   },
 
-  // `req` = { piece, style }: summed R / T steps (Shift steps back).
+  // `req` = { piece, style }: summed R / T steps (Shift steps back). R flips WALL / FLOOR.
   changeBuild(req) {
     const b = this.buildChoice();
     const wrap = (v, n) => ((v % n) + n) % n;
@@ -52,46 +51,43 @@ export const builder = {
     return BUILD_PAL[style ? style - 1 : this.slot % TEAM_COLORS];
   },
 
-  // Ghost of the piece a click would place, drawn in backbuffer px (1 px = 1 terrain cell).
-  // Red when it cannot be built: nothing free, a player in the way or not enough blocks.
+  // Ghost of the piece a click would place, drawn in backbuffer px (1 px = 1 terrain cell), over a
+  // faint patch of the build grid. Red when it cannot be built: nothing free or a player in the way.
   drawBuildPreview(ctx, x, feet) {
-    const me = this.me;
     const b = this.buildChoice();
     const aimAt = { x: (this.input.mx + this.camBx) * 2, y: (this.input.my + this.camBy) * 2 };
     const dist = Math.min(BUILD.cursor, this.cursorDist(aimAt));
     const plan = planPiece(this.terrain, x, feet, this.aim, b.mode, dist);
-    if (!plan.parts.length) return;
-    const ammo = me.ammo[W.builder];
-    let ok = freeCells(this.terrain, plan.parts) > 0 && (ammo < 0 || ammo >= plan.cost);
-    if (ok) {
-      for (let s = 0; s < this.present.length; s++) {
-        const p = this.playerAt(s);
-        if (!p || p.dead || !this.present[s]) continue;
-        const box = bodyCells(p.x, p.y);
-        if (plan.parts.some((part) => partHits(part, ...box))) ok = false;
-      }
+    const part = plan.parts[0];
+    if (!part) return;
+    let ok = freeCells(this.terrain, plan.parts) > 0;
+    const bodies = [[x, feet]];
+    for (let s = 0; s < this.present.length; s++) {
+      const p = s === this.slot ? null : this.playerAt(s);
+      if (p && !p.dead && this.present[s]) bodies.push([p.x, p.y]);
+    }
+    if (ok && bodies.some(([bx, by]) => partHits(part, ...bodyCells(bx, by)))) ok = false;
+
+    const tile = BUILD.tile * BUILD.block;
+    const gx = Math.floor((part.x + part.w / 2) / tile) * tile;
+    const gy = Math.floor((part.y + part.h / 2) / tile) * tile;
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = '#ffffff';
+    for (let k = -1; k <= 2; k++) {
+      ctx.fillRect(gx + k * tile, gy - tile, 1, tile * 3);
+      ctx.fillRect(gx - tile, gy + k * tile, tile * 3, 1);
     }
     const [fill, edge] = ok ? this.buildColor(b.style) : ['#ff4d4d', '#c22'];
-    const pulse = 0.55 + Math.sin(this.time * 6) * 0.1;
-    ctx.save();
-    ctx.globalAlpha = pulse;
+    ctx.globalAlpha = 0.55 + Math.sin(this.time * 6) * 0.1;
     ctx.fillStyle = fill;
-    for (const part of plan.parts) {
-      if (!part.ramp) {
-        ctx.fillRect(part.x, part.y, part.w, part.h);
-        continue;
-      }
-      for (let k = 0; k < part.len; k++) {
-        ctx.fillRect(part.x + k, rampTop(part.y, part.len, part.rise, k), 1, part.thick);
-      }
-    }
-    ctx.globalAlpha = 0.9;
+    ctx.fillRect(part.x, part.y, part.w, part.h);
+    ctx.globalAlpha = 0.95;
     ctx.strokeStyle = ok ? edge : '#ff8080';
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 2]);
     ctx.lineDashOffset = -this.time * 8;
-    const [x0, y0, x1, y1] = plan.box;
-    ctx.strokeRect(x0 / 2 + 0.5, y0 / 2 + 0.5, (x1 - x0) / 2 - 1, (y1 - y0) / 2 - 1);
+    ctx.strokeRect(part.x - 0.5, part.y - 0.5, part.w + 1, part.h + 1);
     ctx.restore();
   },
 
