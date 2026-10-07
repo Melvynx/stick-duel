@@ -98,7 +98,7 @@ export class ClientGame {
   }
 
   color(s) {
-    return this.colors[s] || PLAYER_COLORS[s % 2];
+    return this.colors[s] || PLAYER_COLORS[s % PLAYER_COLORS.length];
   }
 
   setSlot(slot) {
@@ -257,10 +257,10 @@ export class ClientGame {
 
   // Follows the local player with a lead towards the cursor, clamped to the map.
   updateCamera(x, y, alive, dt) {
-    const W = this.terrain.w * 2;
-    const H = this.terrain.h * 2;
-    const clampX = (v) => (W <= 1600 ? (W - 1600) / 2 : Math.max(0, Math.min(W - 1600, v)));
-    const clampY = (v) => (H <= 900 ? (H - 900) / 2 : Math.max(0, Math.min(H - 900, v)));
+    const MW = this.terrain.w * 2;
+    const MH = this.terrain.h * 2;
+    const clampX = (v) => (MW <= 1600 ? (MW - 1600) / 2 : Math.max(0, Math.min(MW - 1600, v)));
+    const clampY = (v) => (MH <= 900 ? (MH - 900) / 2 : Math.max(0, Math.min(MH - 900, v)));
     let tx;
     let ty;
     if (alive) {
@@ -271,8 +271,8 @@ export class ClientGame {
       tx = this.cam.x;
       ty = this.cam.y;
     } else {
-      tx = (W - 1600) / 2;
-      ty = (H - 900) / 2;
+      tx = (MW - 1600) / 2;
+      ty = (MH - 900) / 2;
     }
     tx = clampX(tx);
     ty = clampY(ty);
@@ -339,10 +339,46 @@ export class ClientGame {
     ctx.restore();
 
     for (const s of others) drawOffscreen(ctx, this.remotes[s].x / 2 - cx, this.remotes[s].y / 2 - cy, this.color(s));
+    this.drawMinimap(ctx, others, meOn ? { x: mx, y: my } : null);
     if (meOn) {
       drawOffscreen(ctx, mx / 2 - cx, my / 2 - cy, this.color(this.slot));
       drawCrosshair(ctx, this.input.mx, this.input.my, this.color(this.slot), this.hitFlash);
     }
+  }
+
+  // Bottom-left overview of maps bigger than the screen: terrain, the view box and every player.
+  drawMinimap(ctx, others, me) {
+    const t = this.terrain;
+    const MW = t.w * 2;
+    const MH = t.h * 2;
+    if (MW <= 1600 && MH <= 900) return;
+    let w = 132;
+    let h = Math.round((w * MH) / MW);
+    if (h > 64) {
+      h = 64;
+      w = Math.round((h * MW) / MH);
+    }
+    const x0 = 6;
+    const y0 = 450 - 20 - h;
+    const k = w / MW;
+    ctx.fillStyle = 'rgba(8, 6, 18, 0.72)';
+    ctx.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(this.view.canvas, 0, 0, t.w, t.h, x0, y0, w, h);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(244, 241, 255, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.round(x0 + this.camBx * 2 * k) + 0.5, Math.round(y0 + this.camBy * 2 * k) + 0.5, Math.round(1600 * k), Math.round(900 * k));
+    const dot = (x, y, color, r) => {
+      const px = Math.round(x0 + x * k);
+      const py = Math.round(y0 + (y - PHYS.HEIGHT / 2) * k);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(px - r - 1, py - r - 1, r * 2 + 3, r * 2 + 3);
+      ctx.fillStyle = color;
+      ctx.fillRect(px - r, py - r, r * 2 + 1, r * 2 + 1);
+    };
+    for (const s of others) dot(this.remotes[s].x, this.remotes[s].y, this.color(s), 1);
+    if (me) dot(me.x, me.y, '#ffffff', 1);
   }
 
   drawPlayer(ctx, slot, p, x, y, aim, dt) {

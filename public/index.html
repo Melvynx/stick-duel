@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Stick Duel</title>
-    <meta name="description" content="1v1 online stickman shooter, or solo and co-op against waves of enemies, on fully destructible pixel maps." />
+    <meta name="description" content="Online stickman shooter on fully destructible pixel maps: 1v1 duels, group rooms of up to 8 (free for all or teams), solo and co-op survival." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
@@ -40,7 +40,7 @@
         <div id="netinfo"></div>
         <div id="killfeed"></div>
         <div id="meters">
-          <div class="m keyhint"><kbd>H</kbd> CONTROLS <kbd>ESC</kbd> SETTINGS</div>
+          <div class="m keyhint"><kbd>H</kbd> CONTROLS <kbd>ESC</kbd> SETTINGS <span id="board-hint" class="hidden"><kbd>TAB</kbd> SCORES</span></div>
           <div class="m hidden" id="armory"><span>ARMORY DROP IN</span><b id="armory-t">20S</b></div>
         </div>
         <div id="unlock" class="hidden">
@@ -52,22 +52,34 @@
         <div id="center-msg"></div>
         <div id="sub-msg"></div>
 
-        <div id="waiting" class="hidden">
-          <div class="w-title">WAITING FOR OPPONENT<span class="dots"></span></div>
-          <div class="w-code">ROOM <b id="w-code">----</b></div>
-          <div class="w-row">
+        <div id="waiting" class="waitbox hidden">
+          <div class="w-head">
+            <div class="w-title" id="w-title">WAITING FOR OPPONENT</div>
+            <b class="w-count" id="w-count"></b>
+            <button class="btn small w-fold" id="btn-fold" type="button" aria-expanded="true">HIDE</button>
+          </div>
+          <div class="w-code">
+            <span>ROOM <b id="w-code">----</b></span>
             <button class="btn small" id="btn-copy" type="button">COPY INVITE LINK</button>
           </div>
-          <div class="w-row chips" id="w-maps"></div>
-          <div class="pool-picker" id="w-pool"></div>
-          <div class="w-hint">WARM UP WHILE YOU WAIT - PRESS B TO BUILD</div>
+          <div class="w-players" id="w-players"></div>
+          <div class="w-settings">
+            <div id="w-mode"></div>
+            <div id="w-maps"></div>
+            <div id="w-goal"></div>
+            <div id="w-pool"></div>
+          </div>
+          <button class="btn small primary hidden" id="btn-start" type="button">START MATCH</button>
+          <div class="w-hint" id="w-hint">WARM UP WHILE YOU WAIT - PRESS B TO BUILD</div>
         </div>
+
+        <div id="board" class="hidden"></div>
 
         <div id="coop-wait" class="waitbox hidden">
           <div class="w-title">CO-OP SURVIVAL <b id="cw-count">1/4</b></div>
           <div class="w-code">ROOM <b id="cw-code">----</b></div>
           <div class="w-row players" id="cw-players"></div>
-          <div class="pool-picker" id="cw-pool"></div>
+          <div class="w-settings"><div id="cw-pool"></div></div>
           <div class="w-row">
             <button class="btn small" id="btn-copy3" type="button">COPY INVITE LINK</button>
             <button class="btn small primary" id="btn-coop-start" type="button">START THE WAVES</button>
@@ -100,6 +112,7 @@
           <div class="row"><span class="keys"><kbd>1-9</kbd></span>WEAPONS, <kbd>Q</kbd> LAST, WHEEL CYCLES</div>
           <div class="row"><span class="keys"><kbd data-key="KeyF">F</kbd></span>SHOVE - BREAKS WHAT BLOCKS YOU</div>
           <div class="row"><span class="keys"><kbd data-key="KeyB">B</kbd></span>BUILDER: AIM SIDEWAYS = WALL, UP / DOWN = FLOOR, <kbd data-key="KeyT">T</kbd> STYLE</div>
+          <div class="row"><span class="keys"><kbd>TAB</kbd></span>SCOREBOARD (HOLD)</div>
           <div class="row"><span class="keys"><kbd>ESC</kbd></span>MENU</div>
         </div>
       </div>
@@ -107,10 +120,10 @@
       <div id="menu" class="overlay">
         <div class="panel menu-panel">
           <canvas id="logo" width="200" height="40"></canvas>
-          <div class="tagline">1V1 ONLINE, SOLO OR CO-OP VS WAVES - DESTROY EVERYTHING</div>
+          <div class="tagline">STICKMAN SHOOTER ON FULLY DESTRUCTIBLE MAPS</div>
 
           <label class="field">
-            <span>NAME</span>
+            <span>YOUR NAME</span>
             <input id="name" maxlength="12" autocomplete="off" spellcheck="false" placeholder="PLAYER" />
           </label>
 
@@ -118,10 +131,19 @@
             <button class="btn primary wide" id="btn-join-invite" type="button">JOIN ROOM <b id="invite-code"></b></button>
           </div>
 
-          <div class="section-title">1V1 ONLINE</div>
-          <div class="btn-row">
-            <button class="btn primary" id="btn-quick" type="button">QUICK MATCH</button>
-            <button class="btn" id="btn-create" type="button">PLAY A FRIEND</button>
+          <div class="section">
+            <div class="section-title">PLAY ONLINE</div>
+            <div class="modes">
+              <button class="mode-card quick" id="btn-quick" type="button">
+                <b>QUICK DUEL</b><span>1V1 AGAINST THE NEXT PLAYER ONLINE</span>
+              </button>
+              <button class="mode-card" id="btn-create" type="button">
+                <b>PRIVATE DUEL</b><span>1V1 WITH A FRIEND - SEND THEM THE LINK</span>
+              </button>
+              <button class="mode-card group" id="btn-group" type="button">
+                <b>GROUP ROOM</b><span>2 TO 8 PLAYERS - FREE FOR ALL OR TEAMS</span>
+              </button>
+            </div>
           </div>
 
           <div class="section survival">
@@ -134,9 +156,9 @@
           </div>
 
           <div class="section">
-            <div class="section-title">GOT A CODE?</div>
+            <label class="section-title" for="code">JOIN A ROOM WITH ITS CODE</label>
             <div class="join-row">
-              <input id="code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE" />
+              <input id="code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="ABCD" aria-label="Room code" />
               <button class="btn" id="btn-join" type="button">JOIN</button>
             </div>
           </div>
@@ -164,6 +186,7 @@
         <div class="panel small-panel">
           <div class="panel-title" id="over-title">YOU WIN</div>
           <div class="final" id="over-score"></div>
+          <div class="table hidden" id="over-rank"></div>
           <div class="section-title">NEXT MAP</div>
           <div class="chips" id="over-maps"></div>
           <button class="btn primary wide" id="btn-rematch" type="button">REMATCH</button>

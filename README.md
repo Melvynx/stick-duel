@@ -3,6 +3,7 @@
 Online stickman shooter with destructible, falling-sand pixel maps. Play it at [game.melvynx.dev](https://game.melvynx.dev).
 
 - **1v1 duels**: quick match or private rooms, the host picks the weapon pool.
+- **Group rooms**: 2 to 8 players in free-for-all or teams; the host picks the map, mode, kills to win and weapon pool, friends can join mid-match.
 - **Solo survival**: waves of bots, unlock a new weapon after each wave.
 - **Co-op survival**: up to 4 players online, shared crew lives and revives.
 
@@ -33,6 +34,7 @@ Env vars: `PORT` (default `3030`), `HOST` (default `0.0.0.0`). `GET /healthz` re
 | `1`-`9`, wheel, `Q` | Switch weapon, `Q` for the last one |
 | `F` | Shove, breaks what blocks you |
 | `B` | Builder: aim sideways for a wall, up or down for a floor, `T` for style |
+| `Tab` (hold) | Scoreboard |
 | `H` / `Esc` / `M` | Controls panel / menu and settings / mute |
 
 Keys use physical positions, so ZQSD on AZERTY works like WASD.
@@ -42,7 +44,7 @@ Keys use physical positions, so ZQSD on AZERTY works like WASD.
 The Node.js server is authoritative and ticks at 60 Hz. `shared/` is imported by both the server and the browser: player physics, projectiles and the terrain automaton are deterministic, so clients predict their own movement and replay terrain ops in lockstep instead of receiving pixels.
 
 ```
-server/   lobby, 1v1 rooms, co-op rooms, input queues and snapshots
+server/   lobby, duel and group rooms, co-op rooms, input queues and snapshots
 shared/   game core, weapons, maps, falling-sand sim, survival engine and bots
 public/   static client: rendering, prediction, HUD, audio, menus
 test/     node:test suite

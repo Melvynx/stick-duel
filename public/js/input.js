@@ -51,7 +51,11 @@ export class Input {
       }
       if (e.code === 'KeyM' && !e.repeat) this.emit('mute');
       if (e.code === 'KeyH' && !e.repeat) this.emit('help');
-      if (e.code === 'Tab') e.preventDefault();
+      // TAB keeps moving focus in menus and on the results screen; in play it holds the scoreboard.
+      if (e.code === 'Tab' && this.enabled) {
+        e.preventDefault();
+        if (!e.repeat) this.emit('board', true);
+      }
       const d = /^(Digit|Numpad)([1-9])$/.exec(e.code);
       if (d) this.weaponReq = { bar: Number(d[2]) - 1 };
       else if (BAR[e.code] !== undefined) this.weaponReq = { bar: BAR[e.code] };
@@ -70,11 +74,13 @@ export class Input {
     });
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
+      if (e.code === 'Tab') this.emit('board', false);
     });
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.mouseBtn = 0;
       this.tapped = 0;
+      this.emit('board', false);
     });
 
     canvas.addEventListener('mousedown', (e) => {
@@ -115,9 +121,9 @@ export class Input {
     this.handlers[name] = fn;
   }
 
-  emit(name) {
+  emit(name, arg) {
     const fn = this.handlers[name];
-    if (fn) fn();
+    if (fn) fn(arg);
   }
 
   buttons() {

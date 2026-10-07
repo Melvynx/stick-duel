@@ -52,6 +52,20 @@ test('crates unlock the next pool weapon, ammo boxes refill owned weapons', () =
   assert.equal(p.owned, before, 'a crate with the pool exhausted only heals and refills');
 });
 
+test('1v1 infinite ammo: the flamer never runs dry and pickups keep it infinite', () => {
+  const g = duel();
+  g.infiniteAmmo = true;
+  g.spawn(0, 0);
+  const p = g.players[0];
+  assert.ok(p.ammo.every((a) => a === -1));
+  p.owned |= 1 << W.flame;
+  for (let i = 0; i < 1000; i++) g.applyInput(0, { s: g.tick, b: BTN.FIRE, a: 0, w: W.flame, v: g.tick });
+  assert.ok(p.flaming, 'still flaming after 1000 ticks');
+  g.pickup(0, { id: 1, kind: ITEM.AMMO, x: p.x, y: p.y });
+  g.pickup(0, { id: 2, kind: ITEM.CRATE, x: p.x, y: p.y });
+  assert.equal(p.ammo[W.flame], -1);
+});
+
 test('a death drops an ammo pack', () => {
   const g = duel();
   g.damage(1, 500, 0, W.pistol, 0, 0, 0, 0);

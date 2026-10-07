@@ -34,6 +34,7 @@ export class Game {
     this.cratesOn = false; // supply crates and ammo boxes drop from the sky
     this.armoryOn = false; // everyone unlocks the next pool weapon every `armoryEvery` s (unused by 1v1)
     this.armoryEvery = RULES.ARMORY_EVERY;
+    this.infiniteAmmo = false; // every weapon spawns and refills at -1 (1v1 matches)
     this.pool = FULL_POOL; // allowed weapons: unlocks never leave it, clients build the hotbar from it
     this.startOwned = START_OWNED;
     this.onKill = null;
@@ -136,6 +137,7 @@ export class Game {
     const p = this.players[slot];
     const btn = p.btn;
     resetLoadout(p);
+    if (this.infiniteAmmo) p.ammo.fill(-1);
     p.btn = btn;
     p.x = x;
     p.y = y;

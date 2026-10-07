@@ -1,5 +1,7 @@
-import { GRID_H, GRID_W } from './constants.js';
+import { CELL, GRID_H, GRID_W } from './constants.js';
+import { buildCanyon } from './maps/canyon.js';
 import { buildLanding } from './maps/landing.js';
+import { buildMine } from './maps/mine.js';
 import { buildOutpost } from './maps/outpost.js';
 import { Painter, S, bedrock } from './maps/painter.js';
 import { buildRidge } from './maps/ridge.js';
@@ -46,6 +48,43 @@ export const MAPS = {
       [1240, 300],
     ],
   },
+  mine: {
+    name: 'THE MINE',
+    crystals: false,
+    build: buildMine,
+    spawns: [
+      [112, 660],
+      [1488, 660],
+      [360, 710],
+      [1240, 710],
+      [240, 430],
+      [1360, 430],
+    ],
+  },
+  canyon: {
+    name: 'RED CANYON',
+    w: 1800,
+    h: 700,
+    crystals: false,
+    build: buildCanyon,
+    spawns: [
+      [202, 800],
+      [3398, 800],
+      [580, 1000],
+      [3020, 1000],
+      [952, 1000],
+      [2648, 1000],
+      [1320, 800],
+      [2280, 800],
+      [1640, 1150],
+      [1960, 1150],
+      [628, 600],
+      [2972, 600],
+      [1200, 1040],
+      [2400, 1040],
+      [1832, 300],
+    ],
+  },
   outpost: {
     name: 'OUTPOST',
     w: 1200,
@@ -77,6 +116,12 @@ export const MAPS = {
 };
 
 export const MAP_IDS = Object.keys(MAPS).filter((id) => !MAPS[id].hidden);
+
+// World size in px (maps without `w`/`h` are exactly one screen).
+export function mapSize(id) {
+  const def = MAPS[id] || MAPS.landing;
+  return { w: (def.w || GRID_W) * CELL, h: (def.h || GRID_H) * CELL };
+}
 
 export function buildMap(id, seed) {
   const def = MAPS[id] ? MAPS[id] : MAPS.landing;

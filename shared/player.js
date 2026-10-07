@@ -356,9 +356,9 @@ export function stepPlayer(p, inp, t, out, opts) {
     const held = (b & BTN.FIRE) !== 0;
     const ammo = p.ammo[p.w];
     if (CONTINUOUS.has(W.kind)) {
-      if (held && ammo > 0) {
+      if (held && ammo !== 0) {
         p.flaming = true;
-        p.ammo[p.w]--;
+        if (ammo > 0) p.ammo[p.w]--;
       }
     } else if ((W.auto ? held : p.fireBuf > 0) && p.cd <= 1e-9 && ammo !== 0) {
       p.cd = Math.max(p.cd, -dt) + W.cd;

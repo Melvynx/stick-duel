@@ -255,7 +255,16 @@ export const combat = {
     }
     const tip = reach + (wall >= 0 ? 2 : 0);
     if (n % FLAME.igniteEvery === 0) this.op(slot, OP.IGNITE, ox + dx * tip, oy + dy * tip, 12);
-    if (n % FLAME.carveEvery === 0) this.op(slot, OP.CARVE, ox + dx * tip, oy + dy * tip, FLAME.carveR, 0);
+    if (n % FLAME.carveEvery === 0) {
+      const tx = ox + dx * tip;
+      const ty = oy + dy * tip;
+      const side = wall >= 0 ? Math.abs(dx) : 0;
+      if (side > 0.3) {
+        this.op(slot, OP.CAPSULE, tx, ty - FLAME.tunnel[0] * side, tx, ty + FLAME.tunnel[1] * side, FLAME.carveR);
+      } else {
+        this.op(slot, OP.CARVE, tx, ty, FLAME.carveR, 0);
+      }
+    }
     if (n % FLAME.hitEvery === 0) this.flushFlame(slot);
   },
 

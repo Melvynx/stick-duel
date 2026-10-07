@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { RULES, TICK_MS } from '../shared/constants.js';
-import { MAPS, MAP_IDS } from '../shared/maps.js';
+import { MAPS, MAP_IDS, mapSize } from '../shared/maps.js';
+import { MODES } from '../shared/modes.js';
 import { POOLS, POOL_IDS, SELECTABLE, WEAPONS } from '../shared/weapons.js';
 import { CoopRoom } from './coop.js';
 import { Room } from './room.js';
@@ -83,8 +84,9 @@ export class Lobby {
     this.clients.add(client);
     this.send(client, {
       t: 'hello',
-      maps: MAP_IDS.map((id) => ({ id, name: MAPS[id].name })),
+      maps: MAP_IDS.map((id) => ({ id, name: MAPS[id].name, w: mapSize(id).w, h: mapSize(id).h })),
       goals: RULES.GOALS,
+      modes: Object.entries(MODES).map(([id, m]) => ({ id, name: m.name, max: m.max, goals: m.goals })),
       weapons: SELECTABLE.map((w) => ({ w, name: WEAPONS[w].name })),
       pools: POOL_IDS.map((id) => ({ id, name: POOLS[id].name, mask: POOLS[id].mask })),
     });
@@ -141,7 +143,7 @@ export class Lobby {
       case 'create': {
         this.leaveRoom(client);
         client.name = cleanName(msg.name);
-        const room = this.createRoom({ pub: false, map: msg.map, goal: Number(msg.goal), pool: msg.pool });
+        const room = this.createRoom({ pub: false, map: msg.map, goal: Number(msg.goal), pool: msg.pool, mode: msg.mode });
         room.join(client);
         break;
       }
@@ -152,10 +154,13 @@ export class Lobby {
         break;
       }
       case 'start':
-        if (client.room instanceof CoopRoom) client.room.begin();
+        if (client.room) client.room.begin(client);
         break;
       case 'setopts':
-        if (client.room) client.room.setOpts?.(client, { pool: msg.pool });
+        if (client.room) client.room.setOpts?.(client, { pool: msg.pool, goal: msg.goal, mode: msg.mode });
+        break;
+      case 'team':
+        if (client.room instanceof Room) client.room.setTeam(client, msg.team);
         break;
       case 'join': {
         const code = String(msg.code ?? '').toUpperCase().trim();
@@ -173,7 +178,7 @@ export class Lobby {
         client.name = cleanName(msg.name);
         let room = null;
         for (const r of this.rooms.values()) {
-          if (r instanceof Room && r.pub && r.count === 1 && r.state === 'waiting') {
+          if (r instanceof Room && r.mode === 'duel' && r.pub && r.count === 1 && r.state === 'waiting') {
             room = r;
             break;
           }

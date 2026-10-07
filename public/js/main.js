@@ -1,14 +1,17 @@
 import { CREW_COLORS, INTERP_TICKS, PLAYER_COLORS, TICK_MS } from '/shared/constants.js';
+import { TEAM_NAMES } from '/shared/modes.js';
 import { ENEMIES, MAX_HUMANS, SURVIVAL_SLOTS } from '/shared/survival.js';
-import { POOLS, POOL_IDS, sanitizePool } from '/shared/weapons.js';
+import { POOLS, POOL_IDS } from '/shared/weapons.js';
 import { Sfx } from './audio.js';
 import { Fx, drawText } from './fx.js';
 import { ClientGame } from './game.js';
 import { Input } from './input.js';
 import { Net } from './net.js';
 import { SoloServer } from './solo.js';
+import { poolPicker } from './ui/controls.js';
 import { createFeel } from './ui/feel.js';
 import { createHud } from './ui/hud.js';
+import { createRoomUi, isGroup, ranking, slotColor } from './ui/room.js';
 
 const $ = (sel) => document.querySelector(sel);
 const canvas = $('#view');
@@ -50,13 +53,12 @@ const ui = {
 let maps = [];
 // Weapon picker data (from the server hello, with local defaults so the menu renders offline).
 let poolPresets = POOL_IDS.map((id) => ({ id, name: POOLS[id].name, mask: POOLS[id].mask }));
-// 'menu' | 'duel' (1v1 room) | 'solo' (local waves) | 'coop' (online waves)
+// 'menu' | 'room' (online duel or group room, see room.mode) | 'solo' (local waves) | 'coop' (online waves)
 let mode = 'menu';
 let coop = null; // last co-op room info
 let sv = null; // last survival state, solo or co-op
 let crewNames = [];
 let room = null;
-let mapName = '';
 let lastState = '';
 let countdownEnd = 0;
 let lastBeep = -1;
@@ -112,18 +114,6 @@ async function copyInvite() {
   }
 }
 
-function chips(el, items, selected, onPick) {
-  el.textContent = '';
-  for (const it of items) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `chip${it.id === selected ? ' on' : ''}`;
-    b.textContent = it.name;
-    b.addEventListener('click', () => onPick(it.id));
-    el.appendChild(b);
-  }
-}
-
 // ---------- menu ----------
 
 try {
@@ -145,26 +135,6 @@ ui.code.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') join(ui.code.value);
 });
 
-// Weapons setting: just ALL WEAPONS or BASIC. `onChange(mask)` gets a sanitized pool.
-function poolPicker(el, mask, onChange) {
-  el.textContent = '';
-  const row = document.createElement('div');
-  row.className = 'chips pool-presets';
-  const label = document.createElement('span');
-  label.className = 'pool-label';
-  label.textContent = 'WEAPONS';
-  row.appendChild(label);
-  for (const p of poolPresets) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `chip${p.mask === mask ? ' on' : ''}`;
-    b.textContent = p.name;
-    b.addEventListener('click', () => onChange(sanitizePool(p.mask)));
-    row.appendChild(b);
-  }
-  el.appendChild(row);
-}
-
 function join(code) {
   code = String(code || '').toUpperCase().trim();
   if (code.length !== 4) {
@@ -182,6 +152,10 @@ $('#btn-quick').addEventListener('click', () => {
 $('#btn-create').addEventListener('click', () => {
   sfx.unlock();
   net.send({ t: 'create', name: playerName() }); // map and weapons are picked in the waiting room
+});
+$('#btn-group').addEventListener('click', () => {
+  sfx.unlock();
+  net.send({ t: 'create', name: playerName(), mode: 'ffa' });
 });
 $('#btn-coop').addEventListener('click', () => {
   sfx.unlock();
@@ -377,7 +351,7 @@ function applyCoop(msg) {
       list.appendChild(row);
     });
     setText($('#cw-count'), `${msg.names.filter(Boolean).length}/${MAX_HUMANS}`);
-    poolPicker($('#cw-pool'), msg.pool, (pool) => net.send({ t: 'setopts', pool }));
+    poolPicker($('#cw-pool'), poolPresets, msg.pool, (pool) => net.send({ t: 'setopts', pool }));
     game.setPool(msg.pool);
   }
   if (msg.st === 'playing' && prev && prev.st !== 'playing') {
@@ -484,6 +458,8 @@ function toMenu() {
   show(ui.soloOver, false);
   show(ui.coopWait, false);
   show(ui.waiting, false);
+  boardOn = false;
+  show($('#board'), false);
   show(ui.scoreboard, true);
   show(ui.wavebar, false);
   show($('#btn-copy2'), true);
@@ -500,7 +476,6 @@ function toMenu() {
 }
 
 $('#btn-resume').addEventListener('click', () => setPaused(false));
-$('#btn-copy').addEventListener('click', copyInvite);
 $('#btn-copy2').addEventListener('click', copyInvite);
 $('#btn-mute').addEventListener('click', () => {
   sfx.setMuted(!sfx.muted);
@@ -531,11 +506,20 @@ updateMuteLabel();
 // ---------- hud ----------
 
 const survivalMode = () => mode === 'solo' || mode === 'coop';
-const hud = createHud({ game, sfx, showYou: survivalMode });
+// The kill feed says YOU everywhere but in a duel, where both names are on the scoreboard.
+const hud = createHud({ game, sfx, showYou: () => survivalMode() || isGroup(room) });
+const roomUi = createRoomUi({ game, net, maps: () => maps, pools: () => poolPresets, onCopy: copyInvite });
 const feel = createFeel({ game, sfx, survival: survivalMode });
+const SOLO_DEATH_RULE = {
+  duel: 'THAT DEATH SCORES FOR YOUR OPPONENT',
+  ffa: 'DYING ON YOUR OWN COSTS 1 POINT',
+  teams: 'THAT DEATH SCORES FOR THE OTHER TEAM',
+};
 game.onFeed = (by, victim, w) => {
   hud.onFeed(by, victim, w);
   feel.onDeath(by, victim, w);
+  const noKiller = by < 0 || by === victim;
+  if (mode === 'room' && room?.st === 'playing' && victim === game.slot && noKiller) toast(SOLO_DEATH_RULE[room.mode]);
 };
 game.onHurt = feel.hurtFrom;
 game.onUnlock = hud.unlocked;
@@ -543,32 +527,61 @@ game.onToast = (text) => toast(text);
 
 // ---------- room state ----------
 
+// One toast for everything that changed in the roster: arrivals, departures, a new host.
+function announceRoster(prev, msg) {
+  const parts = [];
+  msg.names.forEach((n, s) => {
+    if (s === game.slot) return;
+    if (n && prev.names[s] !== n) parts.push(`${n} JOINED`);
+    else if (!n && prev.names[s]) parts.push(`${prev.names[s]} LEFT`);
+  });
+  if (isGroup(msg) && msg.host >= 0 && prev.host !== msg.host) {
+    parts.push(msg.host === game.slot ? 'YOU ARE NOW THE HOST' : `${msg.names[msg.host]} IS THE HOST`);
+  }
+  if (parts.length) toast(parts.join(' - '));
+}
+
+// Mid-match callouts: someone one point from the goal, a new free-for-all leader.
+function announceRace(prev, msg) {
+  if (prev.st !== 'playing' || msg.st !== 'playing' || prev.mode !== msg.mode) return;
+  const teams = msg.mode === 'teams';
+  const now = teams ? msg.teamScores : msg.scores;
+  const before = teams ? prev.teamScores : prev.scores;
+  const mine = (i) => (teams ? i === msg.teams[game.slot] : i === game.slot);
+  const label = (i) => (teams ? TEAM_NAMES[i] : msg.names[i]);
+  const point = now.findIndex((v, i) => v === msg.goal - 1 && before[i] < v);
+  if (point >= 0) {
+    sfx.play('beep', 800);
+    return toast(mine(point) ? 'MATCH POINT - ONE MORE TO WIN' : `MATCH POINT FOR ${label(point)}`);
+  }
+  if (msg.mode !== 'ffa') return;
+  const leader = (m) => {
+    const [a, b] = ranking(m);
+    return a !== undefined && m.scores[a] > 0 && (b === undefined || m.scores[a] > m.scores[b]) ? a : -1;
+  };
+  const lead = leader(msg);
+  if (lead >= 0 && lead !== leader(prev)) toast(mine(lead) ? 'YOU TOOK THE LEAD' : `${label(lead)} TOOK THE LEAD`);
+}
+
 function applyRoom(msg) {
   const prev = room;
+  if (prev && prev.code === msg.code) {
+    announceRoster(prev, msg);
+    announceRace(prev, msg);
+  }
   room = msg;
   game.roomState = msg.st;
   game.names = msg.names.map((n, i) => n || `P${i + 1}`);
+  game.colors = msg.names.map((_, s) => slotColor(msg, s));
+  game.team = msg.names.map((_, s) => (msg.mode === 'teams' && msg.teams[s] >= 0 ? msg.teams[s] : s));
   if (msg.pool !== undefined) game.setPool(msg.pool);
 
-  const sb = $('#scoreboard');
-  for (let s = 0; s < 2; s++) {
-    const side = sb.querySelector(`.s${s}`);
-    side.querySelector('.nm').textContent = msg.names[s] || '...';
-    side.querySelector('.sc').textContent = msg.scores[s];
-    side.classList.toggle('me', s === game.slot);
-  }
-  $('#goal-text').textContent = `FIRST TO ${msg.goal}`;
-  const m = maps.find((x) => x.id === msg.map);
-  mapName = m ? m.name : msg.map;
-  $('#map-text').textContent = mapName;
+  roomUi.scoreboard(msg);
+  if (boardOn) roomUi.board(msg, true);
 
   const waiting = msg.st === 'waiting';
   show(ui.waiting, waiting);
-  if (waiting) {
-    $('#w-code').textContent = msg.code;
-    chips($('#w-maps'), maps, msg.map, (id) => net.send({ t: 'setmap', map: id }));
-    poolPicker($('#w-pool'), msg.pool, (pool) => net.send({ t: 'setopts', pool }));
-  }
+  if (waiting) roomUi.waiting(msg);
 
   if (msg.st === 'countdown' && (!prev || prev.st !== 'countdown')) {
     countdownEnd = performance.now() + msg.timer * 1000;
@@ -584,10 +597,10 @@ function applyRoom(msg) {
 
   if (msg.st === 'over') {
     if (lastState !== 'over') {
-      const won = msg.winner === game.slot;
+      const won = roomUi.won(msg);
       overMap = msg.map;
       clearTimeout(overTimer);
-      center(won ? 'VICTORY' : 'DEFEAT', '');
+      center(won ? 'VICTORY' : msg.mode === 'duel' ? 'DEFEAT' : roomUi.winnerText(msg), '');
       overTimer = setTimeout(() => {
         if (!room || room.st !== 'over') return;
         sfx.play(won ? 'win' : 'lose', 800);
@@ -610,52 +623,38 @@ function applyRoom(msg) {
 }
 
 function renderOver(msg) {
-  const won = msg.winner === game.slot;
-  $('#over-title').textContent = won ? 'YOU WIN' : 'YOU LOSE';
-  const sc = $('#over-score');
-  sc.textContent = '';
-  for (let s = 0; s < 2; s++) {
-    const sp = document.createElement('span');
-    sp.className = `s${s}`;
-    sp.textContent = msg.scores[s];
-    sc.appendChild(sp);
-    if (s === 0) {
-      const dash = document.createElement('span');
-      dash.textContent = '-';
-      sc.appendChild(dash);
-    }
-  }
-  chips($('#over-maps'), maps, overMap, (id) => {
+  roomUi.over(msg, overMap, (id) => {
     overMap = id;
     renderOver(room);
   });
-  const other = 1 - game.slot;
-  const status = $('#over-status');
-  const btn = $('#btn-rematch');
-  if (!msg.names[other]) {
-    status.textContent = 'OPPONENT LEFT';
-    btn.disabled = true;
-  } else if (msg.rematch[game.slot]) {
-    status.textContent = 'WAITING FOR OPPONENT...';
-    btn.disabled = true;
-  } else {
-    status.textContent = msg.rematch[other] ? `${msg.names[other]} WANTS A REMATCH` : '';
-    btn.disabled = false;
-  }
 }
+
+// Hold TAB for the ranked scoreboard in online rooms.
+let boardOn = false;
+input.on('board', (on) => {
+  boardOn = on && mode === 'room' && !!room;
+  roomUi.board(room, boardOn);
+});
 
 // ---------- network ----------
 
+// After a dropped connection, try to get back into the same room once the socket is back.
+let rejoinCode = null;
 net.on('open', () => {
   ui.conn.textContent = 'CONNECTED';
   ui.conn.classList.remove('bad');
+  if (rejoinCode) {
+    net.send({ t: 'join', name: playerName(), code: rejoinCode });
+    rejoinCode = null;
+  }
 });
 net.on('close', () => {
   ui.conn.textContent = 'RECONNECTING...';
   ui.conn.classList.add('bad');
   if (game.active && !solo.active) {
+    rejoinCode = (mode === 'room' ? room?.code : coop?.code) ?? null;
     toMenu();
-    toast('CONNECTION LOST');
+    toast(rejoinCode ? 'CONNECTION LOST - REJOINING...' : 'CONNECTION LOST');
   }
 });
 net.on('hello', (msg) => {
@@ -669,8 +668,8 @@ net.on('joined', (msg) => {
     coop = null;
     crewNames = [];
   } else {
-    if (mode !== 'duel') toMenu();
-    mode = 'duel';
+    if (mode !== 'room') toMenu();
+    mode = 'room';
   }
   game.setSlot(msg.slot);
   history.replaceState(null, '', `/?room=${msg.code}`);
@@ -697,9 +696,18 @@ net.on('s', (msg) => {
   if (msg.sv && mode === 'coop') survivalSnapshot(msg);
   game.onSnapshot(msg);
 });
-net.on('err', (msg) => toast(msg.m));
+net.on('err', (msg) => {
+  const gone = msg.m === 'ROOM NOT FOUND';
+  toast(gone ? 'ROOM NOT FOUND - IT MAY HAVE CLOSED' : msg.m);
+  if (gone || msg.m === 'ROOM IS FULL') {
+    inviteCode = null;
+    show($('#invite'), false);
+    if (mode === 'menu') history.replaceState(null, '', '/');
+  }
+});
+// Online rooms announce departures from the roster diff (see announceRoster).
 net.on('left', (msg) => {
-  if (msg.slot !== game.slot) toast(`${game.names[msg.slot] || 'OPPONENT'} LEFT`);
+  if (mode !== 'room' && msg.slot !== game.slot) toast(`${game.names[msg.slot] || 'A PLAYER'} LEFT`);
 });
 net.on('lobby', () => {
   if (game.active && !solo.active) toMenu();
@@ -718,7 +726,7 @@ net.on('lobby', () => {
 // ---------- per-frame HUD ----------
 
 function updateHud(dt) {
-  if (!game.active || mode === 'menu' || (mode === 'duel' && !room)) return;
+  if (!game.active || mode === 'menu' || (mode === 'room' && !room)) return;
   const h = game.hud();
   const hp = Math.max(0, h.hp);
   ui.hpFill.style.width = `${hp}%`;

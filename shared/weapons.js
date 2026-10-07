@@ -129,7 +129,11 @@ export const BOOMS = {
 
 // The flamer melts terrain fast, shoves what it hits and pushes its user back (`thrust`, px/s²):
 // aimed down it becomes a hover. It lights terrain rarely so maps do not turn into a fire pit.
-export const FLAME = { range: 210, carveEvery: 3, carveR: 7, igniteEvery: 14, hitEvery: 6, thrust: 1500, push: 170 };
+// Against a wall it digs a body-sized tunnel: aimed sideways the cut spans `tunnel` px (head
+// clearance above the jet, feet below) so the user can walk into the hole it melts.
+export const FLAME = {
+  range: 210, carveEvery: 2, carveR: 12, tunnel: [10, 30], igniteEvery: 14, hitEvery: 6, thrust: 1500, push: 170,
+};
 // F: a shove that breaks the terrain in front of the player (never bedrock) and knocks enemies back.
 export const MELEE = { cd: 0.28, reach: 16, r: 16, dmg: 20, hitR: 30, push: 460 };
 export const RAIL = { range: 2400, maxPen: 150, carve: 4 };

@@ -42,7 +42,7 @@ export const items = {
     const p = this.players[slot];
     if (w < 0 || owns(p.owned, w)) return false;
     p.owned |= 1 << w;
-    p.ammo[w] = WEAPONS[w].ammo;
+    p.ammo[w] = this.infiniteAmmo ? -1 : WEAPONS[w].ammo;
     if (!silent) this.emit({ e: 'u', s: slot, w });
     return true;
   },
@@ -60,7 +60,7 @@ export const items = {
     const p = this.players[s];
     if (c.kind === ITEM.CRATE) {
       p.hp = Math.min(RULES.HP, p.hp + RULES.CRATE_HEAL);
-      for (let w = 0; w < WEAPONS.length; w++) if (owns(p.owned, w)) p.ammo[w] = WEAPONS[w].ammo;
+      for (let w = 0; w < WEAPONS.length; w++) if (owns(p.owned, w) && p.ammo[w] >= 0) p.ammo[w] = WEAPONS[w].ammo;
       p.nades = GRENADE.count;
       p.fuel = RULES.FUEL;
       this.grant(s, this.nextLocked(s));
@@ -68,7 +68,7 @@ export const items = {
       const share = c.kind === ITEM.AMMO ? 0.5 : 0.35;
       for (let w = 0; w < WEAPONS.length; w++) {
         const full = WEAPONS[w].ammo;
-        if (full > 0 && owns(p.owned, w)) p.ammo[w] = Math.min(full, p.ammo[w] + Math.ceil(full * share));
+        if (full > 0 && owns(p.owned, w) && p.ammo[w] >= 0) p.ammo[w] = Math.min(full, p.ammo[w] + Math.ceil(full * share));
       }
       p.nades = Math.min(GRENADE.count, p.nades + 1);
     }
